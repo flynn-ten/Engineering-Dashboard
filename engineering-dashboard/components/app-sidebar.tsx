@@ -1,5 +1,6 @@
+
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   BarChart3,
   Building2,
@@ -96,24 +97,32 @@ const menuItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
-  const [currentUser, setCurrentUser] = useState({
-    role: "admin",
-    name: "Admin User",
-    email: "admin@company.com",
-    avatar: "AD",
-  })
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
-  // Tambahkan data users yang tersedia
-  const availableUsers = [
-    { role: "admin", name: "Admin User", email: "admin@company.com", avatar: "AD" },
-    { role: "engineer", name: "Ahmad Teknisi", email: "ahmad@company.com", avatar: "AT" },
-    { role: "utility", name: "Dedi Utility", email: "dedi@company.com", avatar: "DU" },
-    { role: "division", name: "Eko Produksi", email: "eko@company.com", avatar: "EP" },
-    { role: "qac", name: "Citra QAC", email: "citra@company.com", avatar: "CQ" },
-  ]
+  useEffect(() => {
+    const access = localStorage.getItem("access")
+    if (!access) return
+
+    try {
+      // Ambil user dari localStorage atau hardcoded sementara
+      const dummyUser = {
+        role: "admin",
+        name: "Admin User",
+        email: "admin@company.com",
+        avatar: "AD",
+      }
+
+      setCurrentUser(dummyUser)
+      setIsLoggedIn(true)
+    } catch (err) {
+      console.error("Gagal parsing user info")
+    }
+  }, [])
+
+  if (!isLoggedIn || !currentUser) return null
 
   const currentRole = currentUser.role
-
   const filteredMenuItems = menuItems.filter((item) => item.roles.includes(currentRole))
 
   return (
@@ -194,28 +203,7 @@ export function AppSidebar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Switch User</DropdownMenuLabel>
-                {availableUsers.map((user) => (
-                  <DropdownMenuItem
-                    key={user.role}
-                    onClick={() => setCurrentUser(user)}
-                    className={currentUser.role === user.role ? "bg-accent" : ""}
-                  >
-                    <Avatar className="h-6 w-6 rounded-lg mr-2">
-                      <AvatarImage src="/placeholder-user.jpg" alt={user.name} />
-                      <AvatarFallback className="rounded-lg text-xs">{user.avatar}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">{user.name}</span>
-                      <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <span>Account Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => alert("Logout clicked!")}>
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
