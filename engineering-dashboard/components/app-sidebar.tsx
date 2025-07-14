@@ -1,19 +1,8 @@
-
 "use client"
-import { useEffect, useState } from "react"
-import {
-  BarChart3,
-  Building2,
-  ClipboardList,
-  FileText,
-  Home,
-  Settings,
-  Shield,
-  Wrench,
-  Zap,
-  ChevronUp,
-} from "lucide-react"
 
+import { useEffect, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   Sidebar,
   SidebarContent,
@@ -29,8 +18,6 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,88 +26,54 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  BarChart3,
+  Building2,
+  ClipboardList,
+  FileText,
+  Home,
+  Settings,
+  Shield,
+  Wrench,
+  Zap,
+  ChevronUp,
+} from "lucide-react"
 
-// Menu items berdasarkan role
 const menuItems = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: Home,
-    roles: ["admin", "engineer", "utility", "division", "qac"],
-  },
-  {
-    title: "Work Orders",
-    url: "/wo",
-    icon: Wrench,
-    roles: ["admin", "engineer"],
-    badge: "12",
-  },
-  {
-    title: "Requests",
-    url: "/request",
-    icon: ClipboardList,
-    roles: ["admin", "division"],
-    badge: "5",
-  },
-  {
-    title: "Energy Monitor",
-    url: "/energy",
-    icon: Zap,
-    roles: ["admin", "utility"],
-  },
-  {
-    title: "Analytics",
-    url: "/analytics",
-    icon: BarChart3,
-    roles: ["admin"],
-  },
-  {
-    title: "Compliance",
-    url: "/compliance",
-    icon: Shield,
-    roles: ["admin", "qac"],
-    badge: "3",
-  },
-  {
-    title: "Files",
-    url: "/files",
-    icon: FileText,
-    roles: ["admin", "engineer", "utility", "division", "qac"],
-  },
-  {
-    title: "Admin",
-    url: "/admin",
-    icon: Settings,
-    roles: ["admin"],
-  },
+  { title: "Dashboard", url: "/", icon: Home, roles: ["admin", "engineer", "utility", "division", "qac"] },
+  { title: "Work Orders", url: "/wo", icon: Wrench, roles: ["admin", "engineer"], badge: "12" },
+  { title: "Requests", url: "/request", icon: ClipboardList, roles: ["admin", "division"], badge: "5" },
+  { title: "Energy Monitor", url: "/energy", icon: Zap, roles: ["admin", "utility"] },
+  { title: "Analytics", url: "/analytics", icon: BarChart3, roles: ["admin"] },
+  { title: "Compliance", url: "/compliance", icon: Shield, roles: ["admin", "qac"], badge: "3" },
+  { title: "Files", url: "/files", icon: FileText, roles: ["admin", "engineer", "utility", "division", "qac"] },
+  { title: "Admin", url: "/admin", icon: Settings, roles: ["admin"] },
 ]
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
+  // ✅ Pastikan semua hooks dipanggil sebelum `return`
   useEffect(() => {
     const access = localStorage.getItem("access")
-    if (!access) return
+    const userJson = localStorage.getItem("user")
 
-    try {
-      // Ambil user dari localStorage atau hardcoded sementara
-      const dummyUser = {
-        role: "admin",
-        name: "Admin User",
-        email: "admin@company.com",
-        avatar: "AD",
+    if (access && userJson) {
+      try {
+        const user = JSON.parse(userJson)
+        setCurrentUser(user)
+        setIsLoggedIn(true)
+      } catch (err) {
+        console.error("Failed to parse user data")
       }
-
-      setCurrentUser(dummyUser)
-      setIsLoggedIn(true)
-    } catch (err) {
-      console.error("Gagal parsing user info")
     }
   }, [])
 
-  if (!isLoggedIn || !currentUser) return null
+  const shouldHideSidebar = pathname === "/login" || pathname === "/regist"
+  if (shouldHideSidebar || !isLoggedIn || !currentUser) return null
 
   const currentRole = currentUser.role
   const filteredMenuItems = menuItems.filter((item) => item.roles.includes(currentRole))
@@ -184,12 +137,7 @@ export function AppSidebar() {
                   <ChevronUp className="ml-auto size-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                side="bottom"
-                align="end"
-                sideOffset={4}
-              >
+              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
@@ -203,7 +151,10 @@ export function AppSidebar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => alert("Logout clicked!")}>
+                <DropdownMenuItem onClick={() => {
+                  localStorage.clear()
+                  router.push("/login")
+                }}>
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -211,6 +162,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   )
