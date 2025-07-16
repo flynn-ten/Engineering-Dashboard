@@ -1,2 +1,22 @@
-"node_modules/" 
-"**/node_modules/" 
+# Node.js
+node_modules/
+.next/
+.turbo/
+out/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.sqlite3
+
+# Env
+.env
+.env.*
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
