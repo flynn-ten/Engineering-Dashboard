@@ -89,7 +89,7 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded shadow">
-      <h1 className="text-2xl font-bold mb-6 text-center">Register User Baru (Admin Only)</h1>
+      <h1 className="text-2xl font-bold mb-6 text-center">Register User</h1>
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
       {success && <p className="text-green-600 mb-4">{success}</p>}
