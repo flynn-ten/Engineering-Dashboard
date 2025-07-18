@@ -40,23 +40,31 @@ import {
 } from "lucide-react"
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: Home, roles: ["admin", "engineer", "utility", "division", "qac"] },
+  { title: "Dashboard", url: "/", icon: Home, roles: ["admin", "engineer", "utility", "requester", "qac"] },
   { title: "Work Orders", url: "/wo", icon: Wrench, roles: ["admin", "engineer"], badge: "12" },
-  { title: "Requests", url: "/request", icon: ClipboardList, roles: ["admin", "division"], badge: "5" },
+  { title: "Requests", url: "/request", icon: ClipboardList, roles: ["admin", "requester"], badge: "5" },
   { title: "Energy Monitor", url: "/energy", icon: Zap, roles: ["admin", "utility"] },
   { title: "Analytics", url: "/analytics", icon: BarChart3, roles: ["admin"] },
   { title: "Compliance", url: "/compliance", icon: Shield, roles: ["admin", "qac"], badge: "3" },
-  { title: "Files", url: "/files", icon: FileText, roles: ["admin", "engineer", "utility", "division", "qac"] },
+  { title: "Files", url: "/files", icon: FileText, roles: ["admin", "engineer", "utility", "requester", "qac"] },
   { title: "Admin", url: "/admin", icon: Settings, roles: ["admin"] },
 ]
+
+// Custom hook buat cek client-side render
+function useHasMounted() {
+  const [hasMounted, setHasMounted] = useState(false)
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
+  return hasMounted
+}
 
 export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const hasMounted = useHasMounted()
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
-  // Ambil data user dari localStorage
   useEffect(() => {
     const access = localStorage.getItem("access")
     const userJson = localStorage.getItem("user")
@@ -65,31 +73,22 @@ export function AppSidebar() {
       try {
         const user = JSON.parse(userJson)
         setCurrentUser(user)
-        setIsLoggedIn(true)
       } catch (err) {
         console.error("❌ Failed to parse user", err)
       }
     }
   }, [])
 
-  // Tambahan fallback timeout jika user gak kebaca
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!currentUser) {
-        setIsLoggedIn(false)
-      }
-    }, 2000)
+  // ⛔️ Jangan render apapun sebelum mount (hindari hydration error)
+  if (!hasMounted) return null
 
-    return () => clearTimeout(timeout)
-  }, [currentUser])
+  const isAuthPage = pathname === "/login"
+  const accessToken = localStorage.getItem("access")
 
-  // 🔐 Hide sidebar di halaman login / regist ATAU kalo access token gak ada
-  const isAuthPage = pathname === "/login" || pathname === "/regist"
-  const accessToken = typeof window !== "undefined" ? localStorage.getItem("access") : null
-
+  // 🚫 Sembunyikan sidebar di halaman login atau kalau belum login
   if (isAuthPage || !accessToken) return null
 
-  // ⏳ Tampilkan loading sebelum currentUser kebaca
+  // ⏳ Loading saat user belum ready
   if (!currentUser) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
