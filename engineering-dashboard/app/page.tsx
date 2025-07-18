@@ -1,27 +1,18 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { AlertTriangle, Clock, Zap, Wrench } from "lucide-react"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, Clock, Zap, Wrench } from "lucide-react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts"
-import { UserSwitcher } from "@/components/user-switcher"
-import { RoleIndicator } from "@/components/role-indicator"
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell
+} from "recharts";
+import { UserSwitcher } from "@/components/user-switcher";
+import { RoleIndicator } from "@/components/role-indicator";
 
-// Dummy data
 const energyData = [
   { name: "Sen", listrik: 1200, air: 800, cng: 400 },
   { name: "Sel", listrik: 1100, air: 750, cng: 380 },
@@ -30,13 +21,13 @@ const energyData = [
   { name: "Jum", listrik: 1400, air: 850, cng: 450 },
   { name: "Sab", listrik: 900, air: 600, cng: 300 },
   { name: "Min", listrik: 800, air: 550, cng: 280 },
-]
+];
 
 const woStatusData = [
   { name: "Open", value: 12, color: "#ef4444" },
   { name: "In Progress", value: 8, color: "#f59e0b" },
   { name: "Completed", value: 25, color: "#10b981" },
-]
+];
 
 const mttrData = [
   { month: "Jan", mttr: 4.2, mtbf: 120 },
@@ -45,12 +36,51 @@ const mttrData = [
   { month: "Apr", mttr: 3.2, mtbf: 145 },
   { month: "Mei", mttr: 3.9, mtbf: 125 },
   { month: "Jun", mttr: 3.1, mtbf: 150 },
-]
+];
 
 export default function Dashboard() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const access = localStorage.getItem("access");
+    const userJson = localStorage.getItem("user");
+
+    if (!access || !userJson || userJson === "undefined") {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const user = JSON.parse(userJson);
+      const role = user.userprofile?.role || user.role;
+
+      if (role !== "admin") {
+        if (role === "engineer") router.push("/wo");
+        else if (role === "utility") router.push("/energy");
+        else if (role === "qac") router.push("/compliance");
+        else router.push("/request");
+        return;
+      }
+
+      setCurrentUser(user);
+      setIsLoading(false);
+    } catch {
+      router.push("/login");
+    }
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-muted-foreground text-center">
+        ⏳ Mengalihkan ke dashboard...
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <SidebarTrigger className="-ml-1" />
         <div className="flex flex-1 items-center justify-between">

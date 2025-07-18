@@ -21,6 +21,8 @@ import {
   Search,
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { RegisterModal } from "@/components/modals/RegisterModal"
+import { useState, useEffect } from "react";
 
 // Dummy data untuk users
 const usersData = [
@@ -146,6 +148,8 @@ const systemSettings = {
 }
 
 export default function AdminPage() {
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Active":
@@ -263,7 +267,7 @@ export default function AdminPage() {
                     <CardTitle>User Management</CardTitle>
                     <CardDescription>Kelola user dan hak akses sistem</CardDescription>
                   </div>
-                  <Button className="gap-2">
+                  <Button className="gap-2" onClick={() => setIsRegisterOpen(true)}>
                     <UserPlus className="h-4 w-4" />
                     Add New User
                   </Button>
@@ -578,6 +582,9 @@ export default function AdminPage() {
             </div>
           </TabsContent>
         </Tabs>
+        {isRegisterOpen && (
+          <RegisterModal open={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} />
+        )}
       </main>
     </div>
   )
