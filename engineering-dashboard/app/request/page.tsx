@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 import {
   Plus,
   Search,
@@ -20,133 +20,107 @@ import {
   XCircle,
   AlertCircle,
   MoreHorizontal,
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import React, { useEffect, useState } from "react";
 
-// Dummy data untuk Requests
-const requests = [
-  {
-    id: "REQ-2024-001",
-    title: "Perbaikan AC Ruang Meeting",
-    description: "AC ruang meeting lantai 2 tidak dingin dan mengeluarkan suara bising",
-    category: "MTC",
-    priority: "High",
-    status: "Approved",
-    requester: "Divisi HR",
-    requesterEmail: "hr@company.com",
-    department: "Human Resources",
-    location: "Lantai 2 - Ruang Meeting A",
-    requestDate: "2024-01-15",
-    approvalDate: "2024-01-15",
-    approver: "Engineering Manager",
-    estimatedCost: 2500000,
-    urgency: "Urgent",
-    workOrderId: "WO-2024-001",
-  },
-  {
-    id: "REQ-2024-002",
-    title: "Kalibrasi Timbangan Digital",
-    description: "Timbangan digital di lab QC perlu dikalibrasi sesuai jadwal",
-    category: "CAL",
-    priority: "Medium",
-    status: "Pending",
-    requester: "Divisi QC",
-    requesterEmail: "qc@company.com",
-    department: "Quality Control",
-    location: "Lab QC - Area Timbang",
-    requestDate: "2024-01-14",
-    approvalDate: null,
-    approver: null,
-    estimatedCost: 1500000,
-    urgency: "Normal",
-    workOrderId: null,
-  },
-  {
-    id: "REQ-2024-003",
-    title: "Penggantian Lampu Penerangan",
-    description: "Beberapa lampu di area produksi mati dan perlu diganti",
-    category: "UTY",
-    priority: "Low",
-    status: "Rejected",
-    requester: "Divisi Produksi",
-    requesterEmail: "produksi@company.com",
-    department: "Production",
-    location: "Area Produksi Line 1",
-    requestDate: "2024-01-12",
-    approvalDate: "2024-01-13",
-    approver: "Engineering Manager",
-    estimatedCost: 500000,
-    urgency: "Normal",
-    workOrderId: null,
-    rejectionReason: "Budget tidak tersedia untuk bulan ini",
-  },
-  {
-    id: "REQ-2024-004",
-    title: "Maintenance Printer Network",
-    description: "Printer network di area admin sering paper jam dan perlu maintenance",
-    category: "MTC",
-    priority: "Medium",
-    status: "In Review",
-    requester: "Divisi Admin",
-    requesterEmail: "admin@company.com",
-    department: "Administration",
-    location: "Area Admin - Lantai 1",
-    requestDate: "2024-01-13",
-    approvalDate: null,
-    approver: null,
-    estimatedCost: 800000,
-    urgency: "Normal",
-    workOrderId: null,
-  },
-]
+const WorkRequestPage = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [wr_number, setWr_number] = useState(null);
+  const [title, setTitle] = useState("");
+  const [wo_description, setWo_description] = useState("");
+  const [wr_type, setWr_type] = useState("");
+  const [wr_requestor, setWr_requestor] = useState("");
+  const [wr_request_by_date, setWr_request_by_date] = useState("");
+  const [year, setYear] = useState(null);
+  const [month, setMonth] = useState(null);
+  const [week_of_month, setWeek_of_month] = useState<number | null>(null);
+  const [resource, setResource] = useState("");
+  const [workRequests, setWorkRequests] = useState<any[]>([]);
+  const [filteredWorkRequests, setFilteredWorkRequests] = useState<any[]>([]);
 
-export default function RequestPage() {
+  // Fetching data from API
+  useEffect(() => {
+    fetch("http://localhost:8000/api/work-request/")
+      .then((response) => response.json())
+      .then((data) => {
+        setWorkRequests(data);
+        setIsLoading(false);
+        if (data.length > 0) {
+          const latestData = data[0];
+          setWr_number(latestData.wr_number);
+          setTitle(latestData.title);
+          setWr_request_by_date(latestData.wr_request_by_date);
+          setWr_type(latestData.wr_type);
+          setResource(latestData.resource);
+          setWo_description(latestData.wo_description);
+          setWr_requestor(latestData.wr_requestor);
+          setYear(latestData.year);
+          setMonth(latestData.month);
+          setWeek_of_month(latestData.week_of_month);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        setIsLoading(false);
+      });
+  }, []);
+
+  // Filter work orders based on week selection
+  useEffect(() => {
+    // First filter by week_of_month if it's not null
+    let filteredData = workRequests;
+    if (week_of_month !== null) {
+      filteredData = filteredData.filter((wr) => wr.week_of_month === week_of_month);
+    }
+
+    // Then filter by year if it's not null
+    if (year !== null) {
+      filteredData = filteredData.filter((wr) => wr.year === year);
+    }
+
+    if (month !== null) {
+      filteredData = filteredData.filter((wr) => wr.month === month);
+    }
+
+    // Set filtered work orders after both filters are applied
+    setFilteredWorkRequests(filteredData);
+  }, [year, month, week_of_month, workRequests]);
+
+  // Status color helper function
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "In Review":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "Approved":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "Rejected":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "High":
-        return "destructive"
-      case "Medium":
-        return "default"
-      case "Low":
-        return "secondary"
-      default:
-        return "outline"
-    }
-  }
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
+  // Category color helper function
+  const getCategoryColor = (resource: string) => {
+    switch (resource) {
       case "MTC":
-        return "bg-purple-100 text-purple-800"
+        return "bg-purple-100 text-purple-800";
       case "CAL":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 text-orange-800";
       case "UTY":
-        return "bg-cyan-100 text-cyan-800"
+        return "bg-cyan-100 text-cyan-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
         <div className="flex flex-1 items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">Request Management</h1>
@@ -169,7 +143,7 @@ export default function RequestPage() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{requests.length}</div>
+              <div className="text-2xl font-bold">{filteredWorkRequests.length}</div>
             </CardContent>
           </Card>
 
@@ -180,7 +154,7 @@ export default function RequestPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">
-                {requests.filter((req) => req.status === "Pending" || req.status === "In Review").length}
+                {filteredWorkRequests.filter((req) => req.status === "Pending" || req.status === "In Review").length}
               </div>
             </CardContent>
           </Card>
@@ -192,7 +166,7 @@ export default function RequestPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {requests.filter((req) => req.status === "Approved").length}
+                {filteredWorkRequests.filter((req) => req.status === "Approved").length}
               </div>
             </CardContent>
           </Card>
@@ -204,7 +178,7 @@ export default function RequestPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {requests.filter((req) => req.status === "Rejected").length}
+                {filteredWorkRequests.filter((req) => req.status === "Rejected").length}
               </div>
             </CardContent>
           </Card>
@@ -260,43 +234,43 @@ export default function RequestPage() {
 
             {/* Request List */}
             <div className="space-y-4">
-              {requests.map((req) => (
-                <Card key={req.id}>
+              {filteredWorkRequests.map((req) => (
+                <Card key={req.wr_number}>
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="space-y-3 flex-1">
                         <div className="flex items-center gap-3">
                           <h3 className="text-lg font-semibold">{req.title}</h3>
-                          <Badge variant="outline">{req.id}</Badge>
-                          <Badge className={getCategoryColor(req.category)}>{req.category}</Badge>
-                          <Badge variant={getPriorityColor(req.priority)}>{req.priority}</Badge>
+                          <Badge variant="outline">{req.wr_number}</Badge>
+                          <Badge className={getCategoryColor(req.resource)}>{req.resource}</Badge>
+                          {/* <Badge variant={getPriorityColor(req.priority)}>{req.priority}</Badge> */}
                           <Badge className={getStatusColor(req.status)}>{req.status}</Badge>
                         </div>
 
-                        <p className="text-sm text-muted-foreground">{req.description}</p>
+                        <p className="text-sm text-muted-foreground">{req.wo_description}</p>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
-                            <span>Requester: {req.requester}</span>
+                            <span>Requester: {req.wr_requestor}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span>Date: {req.requestDate}</span>
+                            {<Calendar className="h-4 w-4 text-muted-foreground" />}
+                            <span>Date: {req.wr_request_by_date} </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <AlertCircle className="h-4 w-4 text-muted-foreground" />
                             <span>Urgency: {req.urgency}</span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          {/* <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">Cost: Rp {req.estimatedCost.toLocaleString()}</span>
-                          </div>
+                          </div> */}
                         </div>
 
                         {req.status === "Approved" && req.workOrderId && (
                           <div className="flex items-center gap-2 text-sm text-green-600">
                             <CheckCircle className="h-4 w-4" />
-                            <span>Work Order Created: {req.workOrderId}</span>
+                            <span>Work Order Created: {req.wr_request_by_date}</span>
                           </div>
                         )}
 
@@ -334,7 +308,6 @@ export default function RequestPage() {
               ))}
             </div>
           </TabsContent>
-
           <TabsContent value="create" className="space-y-4">
             <Card>
               <CardHeader>
@@ -443,5 +416,10 @@ export default function RequestPage() {
         </Tabs>
       </main>
     </div>
-  )
-}
+  );
+  
+};
+
+
+
+export default WorkRequestPage;

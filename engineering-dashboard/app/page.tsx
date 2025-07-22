@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import supabase from "@/lib/supabase";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,8 +43,14 @@ export default function Dashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeWorkOrders, setActiveWorkOrders] = useState(0);
+  const [lastWeekChange, setLastWeekChange] = useState(0);
+  const [unreleasedWorkOrders, setUnreleasedWorkOrders] = useState(0);
+  const [unreleasedLastWeekChange, setUnreleasedLastWeekChange] = useState(0);
+  
 
   useEffect(() => {
+    // Check for authentication and redirect if needed
     const access = localStorage.getItem("access");
     const userJson = localStorage.getItem("user");
 
@@ -69,39 +76,91 @@ export default function Dashboard() {
     } catch {
       router.push("/login");
     }
+
+    // Fetch Active Work Orders from Django API
+    fetch("http://localhost:8000/api/active-work-orders/")
+      .then((response) => response.json())
+      .then((data) => {
+        // Assuming data is an array of active work orders, get the first (latest) entry
+        const latestData = data[0];
+
+        setActiveWorkOrders(latestData.released_count); // Set the active work orders count
+        setLastWeekChange(latestData.diff_from_last_week); // Set the difference from the previous week
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        setIsLoading(false);
+      });
+  }, []);
+
+  //fetch unreleased work orders
+  useEffect(() => {
+    fetch("http://localhost:8000/api/unreleased-work-orders/")
+      .then((response) => response.json())
+      .then((data) => {
+        // Assuming data is an array of active work orders, get the first (latest) entry
+        const latestData = data[0];
+
+        setUnreleasedWorkOrders(latestData.unreleased_count); // Set the unreleased work orders count
+        setUnreleasedLastWeekChange(latestData.diff_from_last_week_unreleased); // Set the difference from the previous week
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        setIsLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('work_orders_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'main_data',
+        },
+        (payload) => {
+          console.log("Change detected:", payload);
+          // Handle data changes
+          // Re-fetch or update the state based on the change type (INSERT, UPDATE, DELETE)
+          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
+            fetch("http://localhost:8000/api/active-work-orders/")
+              .then((response) => response.json())
+              .then((data) => {
+                const latestData = data[0];
+                setActiveWorkOrders(latestData.released_count);
+                setLastWeekChange(latestData.diff_from_last_week);
+              });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="p-8 text-muted-foreground text-center">
-        ⏳ Mengalihkan ke dashboard...
-      </div>
-    );
+    return <div className="p-8 text-muted-foreground text-center">⏳ Mengalihkan ke dashboard...</div>;
   }
 
   return (
     <div className="flex flex-col min-h-screen">
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
         <div className="flex flex-1 items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">Engineering Dashboard</h1>
             <p className="text-sm text-muted-foreground">Selamat datang di platform monitoring teknis terintegrasi</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-green-600 border-green-600">
-              System Online
-            </Badge>
-            <UserSwitcher />
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 space-y-6 p-6">
-        {/* Role Indicator */}
-        <RoleIndicator currentRole="admin" />
-
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -110,22 +169,28 @@ export default function Dashboard() {
               <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">20</div>
+              <div className="text-2xl font-bold">{activeWorkOrders}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-red-500">+3</span> dari minggu lalu
+                <span className={`text-${lastWeekChange >= 0 ? "green" : "red"}-500`}>
+                  {lastWeekChange >= 0 ? `+${lastWeekChange} ` : lastWeekChange}
+                </span>
+                from last week
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Unrelease Work Orders</CardTitle>
+              <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">5</div>
+              <div className="text-2xl font-bold">{unreleasedWorkOrders}</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-500">-2</span> dari minggu lalu
+                <span className={`text-${unreleasedLastWeekChange >= 0 ? "green" : "red"}-500`}>
+                  {unreleasedLastWeekChange >= 0 ? `+${unreleasedLastWeekChange} ` : unreleasedLastWeekChange}
+                </span>
+                from last week
               </p>
             </CardContent>
           </Card>
