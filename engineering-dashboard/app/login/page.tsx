@@ -32,6 +32,7 @@ export default function LoginPage() {
       // Simpan access & refresh token
       localStorage.setItem('access', data.access);
       localStorage.setItem('refresh', data.refresh);
+      
 
       console.log('🔐 Access Token:', data.access);
 
@@ -46,13 +47,13 @@ export default function LoginPage() {
 
       if (!userInfo.ok) {
         const text = await userInfo.text();
-        console.error('❌ Gagal ambil user info:', text);
+        console.error('Gagal ambil user info:', text);
         setError('Gagal mendapatkan data user');
         return;
       }
 
       const user = await userInfo.json();
-      console.log('✅ User Data:', user);
+      console.log('User Data:', user);
 
       // Simpan user ke localStorage
       localStorage.setItem('user', JSON.stringify(user));
