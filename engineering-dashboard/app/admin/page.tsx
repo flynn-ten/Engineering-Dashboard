@@ -24,69 +24,112 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { RegisterModal } from "@/components/modals/RegisterModal"
 import { useState, useEffect } from "react";
 
-// Dummy data untuk users
-const usersData = [
-  {
-    id: "USER-001",
-    name: "Ahmad Teknisi",
-    email: "ahmad.teknisi@company.com",
-    role: "Engineering Staff",
-    department: "Engineering",
-    status: "Active",
-    lastLogin: "2024-01-16 09:30",
-    joinDate: "2023-06-15",
-    permissions: ["wo_view", "wo_update", "files_view"],
-    avatar: "/placeholder-user.jpg",
-  },
-  {
-    id: "USER-002",
-    name: "Budi Manager",
-    email: "budi.manager@company.com",
-    role: "Admin",
-    department: "Engineering",
-    status: "Active",
-    lastLogin: "2024-01-16 08:15",
-    joinDate: "2022-03-10",
-    permissions: ["all"],
-    avatar: "/placeholder-user.jpg",
-  },
-  {
-    id: "USER-003",
-    name: "Citra QAC",
-    email: "citra.qac@company.com",
-    role: "QAC",
-    department: "Quality Control",
-    status: "Active",
-    lastLogin: "2024-01-15 16:45",
-    joinDate: "2023-01-20",
-    permissions: ["compliance_view", "compliance_update", "files_view"],
-    avatar: "/placeholder-user.jpg",
-  },
-  {
-    id: "USER-004",
-    name: "Dedi Utility",
-    email: "dedi.utility@company.com",
-    role: "Utility Team",
-    department: "Utility",
-    status: "Active",
-    lastLogin: "2024-01-16 07:00",
-    joinDate: "2023-08-05",
-    permissions: ["energy_input", "energy_view"],
-    avatar: "/placeholder-user.jpg",
-  },
-  {
-    id: "USER-005",
-    name: "Eko Produksi",
-    email: "eko.produksi@company.com",
-    role: "Division User",
-    department: "Production",
-    status: "Inactive",
-    lastLogin: "2024-01-10 14:20",
-    joinDate: "2023-11-12",
-    permissions: ["request_create", "request_view"],
-    avatar: "/placeholder-user.jpg",
-  },
-]
+export default function AdminPage() {
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [usersData, setUsersData] = useState<any[]>([]); // ✅ deklarasi di sini
+  const activeUsers = usersData?.filter((user) => user.status === "Active").length || 0
+  const totalUsers = usersData?.length || 0
+
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Active":
+        return "bg-green-100 text-green-800"
+      case "Inactive":
+        return "bg-red-100 text-red-800"
+      case "Pending":
+        return "bg-yellow-100 text-yellow-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case "Admin":
+        return "destructive"
+      case "Engineering Staff":
+        return "default"
+      case "QAC":
+        return "secondary"
+      case "Utility Team":
+        return "outline"
+      case "Division User":
+        return "outline"
+      default:
+        return "outline"
+    }
+  }
+
+useEffect(() => {
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+
+      let res = await fetch("http://localhost:8000/api/users/", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Kalau token expired, coba refresh token
+      if (res.status === 401) {
+        console.warn("Token expired. Trying refresh...");
+
+        const refreshToken = localStorage.getItem("refreshToken");
+        const refreshRes = await fetch("http://localhost:8000/api/token/refresh/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
+
+        if (!refreshRes.ok) {
+  // hapus semua token lama
+  localStorage.removeItem("accessToken")
+  localStorage.removeItem("refreshToken")
+
+  // redirect ke login
+  window.location.href = "/login"
+  throw new Error("Refresh token invalid, please login again")
+}
+
+
+        const refreshData = await refreshRes.json();
+        localStorage.setItem("accessToken", refreshData.access);
+        
+
+        // Retry fetch user dengan token baru
+        res = await fetch("http://localhost:8000/api/users/", {
+          headers: {
+            Authorization: `Bearer ${refreshData.access}`,
+          },
+        });
+      }
+
+      if (!res.ok) {
+        const errorBody = await res.text();
+        throw new Error(`Fetch failed: ${res.status} - ${errorBody}`);
+      }
+
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setUsersData(data);
+      } else {
+        setUsersData([]);
+        console.error("Expected array but got:", data);
+      }
+    } catch (err) {
+      console.error("Final error fetching users:", err);
+      setUsersData([]);
+    }
+  };
+
+  fetchUsers();
+}, []);
+
+
 
 // Dummy data untuk audit trail
 const auditData = [
@@ -147,41 +190,7 @@ const systemSettings = {
   sessionTimeout: "8 hours",
 }
 
-export default function AdminPage() {
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Active":
-        return "bg-green-100 text-green-800"
-      case "Inactive":
-        return "bg-red-100 text-red-800"
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case "Admin":
-        return "destructive"
-      case "Engineering Staff":
-        return "default"
-      case "QAC":
-        return "secondary"
-      case "Utility Team":
-        return "outline"
-      case "Division User":
-        return "outline"
-      default:
-        return "outline"
-    }
-  }
-
-  const activeUsers = usersData.filter((user) => user.status === "Active").length
-  const totalUsers = usersData.length
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -310,34 +319,33 @@ export default function AdminPage() {
 
             {/* Users List */}
             <div className="space-y-4">
-              {usersData.map((user) => (
-                <Card key={user.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                          <AvatarFallback>
-                            {user.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">{user.name}</h3>
-                            <Badge variant={getRoleColor(user.role)}>{user.role}</Badge>
-                            <Badge className={getStatusColor(user.status)}>{user.status}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>Department: {user.department}</span>
-                            <span>Last Login: {user.lastLogin}</span>
-                            <span>Joined: {user.joinDate}</span>
-                          </div>
-                        </div>
-                      </div>
+              {usersData.map((user: any) => (
+  <Card key={user.id}>
+    <CardContent className="p-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Avatar className="h-12 w-12">
+            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.full_name} />
+            <AvatarFallback>
+              {user.full_name
+                .split(" ")
+                .map((n: string) => n[0])
+                .join("")}
+            </AvatarFallback>
+          </Avatar>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold">{user.full_name}</h3>
+              <Badge variant={getRoleColor(user.role)}>{user.role}</Badge>
+              <Badge className={getStatusColor(user.status)}>{user.status}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span>Division: {user.division}</span>
+              <span>Joined: {new Date(user.date_joined).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
 
                       <div className="flex items-center gap-2">
                         <Switch checked={user.status === "Active"} />

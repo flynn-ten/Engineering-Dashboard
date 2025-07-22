@@ -126,10 +126,6 @@ const WorkRequestPage = () => {
             <h1 className="text-lg font-semibold">Request Management</h1>
             <p className="text-sm text-muted-foreground">Kelola permintaan perbaikan dan maintenance</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Buat Request Baru
-          </Button>
         </div>
       </header>
 
