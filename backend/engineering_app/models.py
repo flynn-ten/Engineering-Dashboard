@@ -16,3 +16,54 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} ({self.role})"
+
+class active_work_orders(models.Model):
+    # Define the fields in your table
+    wo_description = models.CharField(max_length=255)
+    wo_cost = models.DecimalField(max_digits=10, decimal_places=2)
+    wo_status = models.CharField(max_length=50)
+    wo_created_date = models.DateTimeField()
+
+    def __str__(self):
+        return self.wo_description
+    
+class unrealesed_work_orders(models.Model):
+    # Define the fields in your table
+    wo_description = models.CharField(max_length=255)
+    wo_cost = models.DecimalField(max_digits=10, decimal_places=2)
+    wo_status = models.CharField(max_length=50)
+    wo_created_date = models.DateTimeField()
+
+    def __str__(self):
+        return self.wo_description
+    
+class WorkOrderList(models.Model):
+    # Define the fields in your table
+    no = models.IntegerField()
+    title = models.CharField(max_length=100)
+    wo_description = models.CharField(max_length=255)
+    resource = models.CharField(max_length=100)
+    wo_type = models.CharField(max_length=50)
+    wo_status = models.CharField(max_length=50)
+    wo_created_date = models.DateTimeField()
+    wr_requestor = models.CharField(max_length=100)
+    wo_actual_completion_date = models.DateTimeField()
+    actual_duration = models.DurationField()
+
+    def __str__(self):
+        return self.wo_description
+
+class WorkRequest(models.Model):
+    wr_number = models.IntegerField()
+    title = models.CharField(max_length=100)
+    wo_description = models.CharField(max_length=255)
+    resource = models.CharField(max_length=100)
+    wr_type = models.CharField(max_length=50)
+    wr_request_by_date = models.DateTimeField()
+    wr_requestor = models.CharField(max_length=100)
+    year = models.IntegerField()
+    month = models.IntegerField()
+    week_of_month = models.IntegerField()
+
+    def __str__(self):
+        return self.title
