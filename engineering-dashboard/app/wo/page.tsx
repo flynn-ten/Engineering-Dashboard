@@ -1,151 +1,162 @@
-"use client"
+'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Plus, Calendar, Clock, User, Wrench, AlertCircle, CheckCircle, MoreHorizontal } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import React, { useEffect, useState } from "react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Wrench, AlertCircle, Clock, CheckCircle, User, Calendar, MoreHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import supabase from "@/lib/supabase";
 
-// Dummy data untuk Work Orders
-const workOrders = [
-  {
-    id: "WO-2024-001",
-    title: "Perbaikan Pompa Air Utama",
-    description: "Pompa air utama mengalami kebocoran dan perlu perbaikan segera",
-    category: "MTC",
-    type: "Unplanned",
-    priority: "High",
-    status: "In Progress",
-    assignee: "Ahmad Teknisi",
-    requester: "Divisi Produksi",
-    createdDate: "2024-01-15",
-    dueDate: "2024-01-17",
-    completedDate: null,
-    estimatedHours: 8,
-    actualHours: 6,
-  },
-  {
-    id: "WO-2024-002",
-    title: "Maintenance AC Unit 3",
-    description: "Maintenance rutin AC unit 3 sesuai jadwal preventif",
-    category: "MTC",
-    type: "Preventive",
-    priority: "Medium",
-    status: "Open",
-    assignee: "Budi Teknisi",
-    requester: "Engineering",
-    createdDate: "2024-01-14",
-    dueDate: "2024-01-20",
-    completedDate: null,
-    estimatedHours: 4,
-    actualHours: 0,
-  },
-  {
-    id: "WO-2024-003",
-    title: "Kalibrasi Sensor Suhu",
-    description: "Kalibrasi sensor suhu ruang produksi sesuai standar ISO",
-    category: "CAL",
-    type: "Preventive",
-    priority: "Low",
-    status: "Completed",
-    assignee: "Citra Teknisi",
-    requester: "QAC",
-    createdDate: "2024-01-10",
-    dueDate: "2024-01-15",
-    completedDate: "2024-01-14",
-    estimatedHours: 2,
-    actualHours: 1.5,
-  },
-  {
-    id: "WO-2024-004",
-    title: "Penggantian Filter HVAC",
-    description: "Penggantian filter HVAC area clean room",
-    category: "UTY",
-    type: "Preventive",
-    priority: "Medium",
-    status: "Open",
-    assignee: "Dedi Teknisi",
-    requester: "Divisi QC",
-    createdDate: "2024-01-12",
-    dueDate: "2024-01-18",
-    completedDate: null,
-    estimatedHours: 3,
-    actualHours: 0,
-  },
-  {
-    id: "WO-2024-005",
-    title: "Inspeksi Kelistrikan Panel",
-    description: "Inspeksi rutin panel listrik utama dan backup",
-    category: "UTY",
-    type: "Predictive",
-    priority: "High",
-    status: "In Progress",
-    assignee: "Eko Teknisi",
-    requester: "Engineering",
-    createdDate: "2024-01-13",
-    dueDate: "2024-01-16",
-    completedDate: null,
-    estimatedHours: 6,
-    actualHours: 4,
-  },
-]
+const WorkOrdersPage = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [wo_no, setWo_no] = useState(null);
+  const [title, setTitle] = useState("");
+  const [wo_created_date, setWo_created_date] = useState("");
+  const [wo_status, setWo_status] = useState("");
+  const [wo_description, setWo_description] = useState("");
+  const [wo_type, setWo_type] = useState("");
+  const [wr_requestor, setWr_requestor] = useState("");
+  const [wo_actual_completion_date, setWo_actual_completion_date] = useState("");
+  const [actual_duration, setActual_duration] = useState(null);
+  const [year, setYear] = useState(null);
+  const [month, setMonth] = useState(null);
+  const [week_of_month, setWeek_of_month] = useState<number | null>(null);
+  const [resource, setResource] = useState("");
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
 
-export default function WorkOrdersPage() {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Open":
-        return "bg-blue-100 text-blue-800"
-      case "In Progress":
-        return "bg-yellow-100 text-yellow-800"
-      case "Completed":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
+  // Fetching data from API
+  useEffect(() => {
+    fetch("http://localhost:8000/api/work-order-list/")
+      .then((response) => response.json())
+      .then((data) => {
+        setWorkOrders(data);
+        setIsLoading(false);
+        if (data.length > 0) {
+          const latestData = data[0];
+          setWo_no(latestData.no);
+          setTitle(latestData.title);
+          setWo_created_date(latestData.wo_created_date);
+          setWo_status(latestData.wo_status);
+          setResource(latestData.resource);
+          setWo_description(latestData.wo_description);
+          setWo_type(latestData.wo_type);
+          setWr_requestor(latestData.wr_requestor);
+          setWo_actual_completion_date(latestData.wo_actual_completion_date);
+          setActual_duration(latestData.actual_duration);
+          setYear(latestData.year);
+          setMonth(latestData.month);
+          setWeek_of_month(latestData.week_of_month);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        setIsLoading(false);
+      });
+  }, []);
+
+  // Filter work orders based on week selection
+  useEffect(() => {
+  // First filter by week_of_month if it's not null
+  let filteredData = workOrders;
+  if (week_of_month !== null) {
+    filteredData = filteredData.filter((wo) => wo.week_of_month === week_of_month);
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "High":
-        return "destructive"
-      case "Medium":
-        return "default"
-      case "Low":
-        return "secondary"
-      default:
-        return "outline"
-    }
+  // Then filter by year if it's not null
+  if (year !== null) {
+    filteredData = filteredData.filter((wo) => wo.year === year);
   }
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
+  if (month !== null) {
+    filteredData = filteredData.filter((wo) => wo.month === month);
+  }
+
+  // Set filtered work orders after both filters are applied
+  setFilteredWorkOrders(filteredData);
+
+}, [year, month, week_of_month, workOrders]);
+
+
+  // Supabase real-time subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('list_orders_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'main_data',
+        },
+        (payload) => {
+          console.log("Change detected:", payload);
+
+          // If it's an insert event, add the new work order to the state
+          if (payload.eventType === "INSERT") {
+            setWorkOrders((prev) => [...prev, payload.new]);
+          }
+
+          // If it's an update event, find and update the corresponding work order
+          if (payload.eventType === "UPDATE") {
+            setWorkOrders((prev) =>
+              prev.map((wo) => (wo.no === payload.new.no ? payload.new : wo))
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const getStatusColor = (wo_status: string) => {
+    switch (wo_status) {
+      case "Released":
+        return "bg-blue-100 text-blue-800";
+      case "Unreleased":
+        return "bg-yellow-100 text-yellow-800";
+      case "Complete":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getCategoryColor = (resource: string) => {
+    switch (resource) {
       case "MTC":
-        return "bg-purple-100 text-purple-800"
+        return "bg-purple-100 text-purple-800";
       case "CAL":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 text-orange-800";
       case "UTY":
-        return "bg-cyan-100 text-cyan-800"
+        return "bg-cyan-100 text-cyan-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
+      {/* Loading state */}
+      {isLoading && <div>Loading...</div>}
+
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
         <div className="flex flex-1 items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">Work Orders Management</h1>
             <p className="text-sm text-muted-foreground">Kelola dan pantau semua work orders</p>
           </div>
           <Button className="gap-2">
-            <Plus className="h-4 w-4" />
+            <MoreHorizontal className="h-4 w-4" />
             Buat WO Baru
           </Button>
         </div>
@@ -161,30 +172,30 @@ export default function WorkOrdersPage() {
               <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{workOrders.length}</div>
+              <div className="text-2xl font-bold">{filteredWorkOrders.length}</div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Open</CardTitle>
+              <CardTitle className="text-sm font-medium">Released</CardTitle>
               <AlertCircle className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">
-                {workOrders.filter((wo) => wo.status === "Open").length}
+                {filteredWorkOrders.filter((wo) => wo.wo_status === "Released").length}
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+              <CardTitle className="text-sm font-medium">Unreleased</CardTitle>
               <Clock className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">
-                {workOrders.filter((wo) => wo.status === "In Progress").length}
+                {filteredWorkOrders.filter((wo) => wo.wo_status === "Unreleased").length}
               </div>
             </CardContent>
           </Card>
@@ -196,7 +207,7 @@ export default function WorkOrdersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {workOrders.filter((wo) => wo.status === "Completed").length}
+                {filteredWorkOrders.filter((wo) => wo.wo_status === "Complete").length}
               </div>
             </CardContent>
           </Card>
@@ -211,21 +222,9 @@ export default function WorkOrdersPage() {
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input placeholder="Cari WO berdasarkan ID, judul, atau deskripsi..." className="pl-8" />
                 </div>
               </div>
-              <Select>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Status</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
               <Select>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Kategori" />
@@ -235,17 +234,6 @@ export default function WorkOrdersPage() {
                   <SelectItem value="mtc">MTC</SelectItem>
                   <SelectItem value="cal">CAL</SelectItem>
                   <SelectItem value="uty">UTY</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Prioritas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Prioritas</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -260,37 +248,36 @@ export default function WorkOrdersPage() {
           </TabsList>
 
           <TabsContent value="list" className="space-y-4">
-            {workOrders.map((wo) => (
-              <Card key={wo.id}>
+            {filteredWorkOrders.map((wo) => (
+              <Card key={wo.no}>
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="space-y-3 flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="text-lg font-semibold">{wo.title}</h3>
-                        <Badge variant="outline">{wo.id}</Badge>
-                        <Badge className={getCategoryColor(wo.category)}>{wo.category}</Badge>
-                        <Badge variant={getPriorityColor(wo.priority)}>{wo.priority}</Badge>
-                        <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
+                        <Badge variant="outline">{wo.no}</Badge>
+                        <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
+                        <Badge className={getStatusColor(wo.wo_status)}>{wo.wo_status}</Badge>
                       </div>
 
-                      <p className="text-sm text-muted-foreground">{wo.description}</p>
+                      <p className="text-sm text-muted-foreground">{wo.wo_description}</p>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
-                          <span>Assignee: {wo.assignee}</span>
+                          <span>Assignee: {wo.wr_requestor}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>Due: {wo.dueDate}</span>
+                          <span>Due: {wo.wo_actual_completion_date} </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span>Est: {wo.estimatedHours}h</span>
+                          <span>Est: {wo.actual_duration} </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Wrench className="h-4 w-4 text-muted-foreground" />
-                          <span>Type: {wo.type}</span>
+                          <span>Type: {wo.wo_type}</span>
                         </div>
                       </div>
                     </div>
@@ -314,123 +301,10 @@ export default function WorkOrdersPage() {
               </Card>
             ))}
           </TabsContent>
-
-          <TabsContent value="kanban" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Open Column */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-blue-500" />
-                    Open ({workOrders.filter((wo) => wo.status === "Open").length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {workOrders
-                    .filter((wo) => wo.status === "Open")
-                    .map((wo) => (
-                      <Card key={wo.id} className="p-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="outline" className="text-xs">
-                              {wo.id}
-                            </Badge>
-                            <Badge variant={getPriorityColor(wo.priority)} className="text-xs">
-                              {wo.priority}
-                            </Badge>
-                          </div>
-                          <h4 className="font-medium text-sm">{wo.title}</h4>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            <span>{wo.assignee}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            <span>Due: {wo.dueDate}</span>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                </CardContent>
-              </Card>
-
-              {/* In Progress Column */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-yellow-500" />
-                    In Progress ({workOrders.filter((wo) => wo.status === "In Progress").length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {workOrders
-                    .filter((wo) => wo.status === "In Progress")
-                    .map((wo) => (
-                      <Card key={wo.id} className="p-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="outline" className="text-xs">
-                              {wo.id}
-                            </Badge>
-                            <Badge variant={getPriorityColor(wo.priority)} className="text-xs">
-                              {wo.priority}
-                            </Badge>
-                          </div>
-                          <h4 className="font-medium text-sm">{wo.title}</h4>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            <span>{wo.assignee}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {wo.actualHours}h / {wo.estimatedHours}h
-                            </span>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                </CardContent>
-              </Card>
-
-              {/* Completed Column */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    Completed ({workOrders.filter((wo) => wo.status === "Completed").length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {workOrders
-                    .filter((wo) => wo.status === "Completed")
-                    .map((wo) => (
-                      <Card key={wo.id} className="p-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="outline" className="text-xs">
-                              {wo.id}
-                            </Badge>
-                            <Badge className="bg-green-100 text-green-800 text-xs">Done</Badge>
-                          </div>
-                          <h4 className="font-medium text-sm">{wo.title}</h4>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <User className="h-3 w-3" />
-                            <span>{wo.assignee}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <CheckCircle className="h-3 w-3" />
-                            <span>Completed: {wo.completedDate}</span>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
         </Tabs>
       </main>
     </div>
-  )
-}
+  );
+};
+
+export default WorkOrdersPage;
