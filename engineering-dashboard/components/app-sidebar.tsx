@@ -74,7 +74,7 @@ export function AppSidebar() {
         const user = JSON.parse(userJson)
         setCurrentUser(user)
       } catch (err) {
-        console.error("❌ Failed to parse user", err)
+        console.error("Failed to parse user", err)
       }
     }
   }, [])
@@ -157,7 +157,7 @@ export function AppSidebar() {
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">{currentUser.username}</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {currentUser.email || "user@email.com"}
+                      {currentUser.userprofile?.role || "Role tidak tersedia"}
                     </span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
@@ -178,11 +178,12 @@ export function AppSidebar() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">{currentUser.username}</span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {currentUser.email || "user@email.com"}
-                      </span>
-                    </div>
+  <span className="truncate font-semibold">{currentUser.username}</span>
+  <span className="truncate text-xs text-muted-foreground">
+    {currentUser.userprofile?.role || "Role tidak tersedia"}
+  </span>
+</div>
+
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
