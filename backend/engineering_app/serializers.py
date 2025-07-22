@@ -21,3 +21,11 @@ class UserSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+class UserProfileWithUserSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source='user.email')
+    date_joined = serializers.DateTimeField(source='user.date_joined')
+    
+    class Meta:
+        model = UserProfile
+        fields = ['id', 'full_name', 'email', 'role', 'division', 'status', 'avatar', 'date_joined']

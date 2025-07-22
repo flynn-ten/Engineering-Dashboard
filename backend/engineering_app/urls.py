@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import MeView, RegisterUserView, DivisionListView
 from . import views
+from .views import MeView, RegisterUserView, DivisionListView, UserListView, UserStatsView
 
 urlpatterns = [
     path('me/', MeView.as_view()),
@@ -10,4 +11,6 @@ urlpatterns = [
     path('unreleased-work-orders/', views.unreleased_work_orders),
     path('work-order-list/', views.work_order_list),
     path('work-request/', views.work_request_list),
+    path("users/", UserListView.as_view(), name="user-list"),
+    path('users/stats/', UserStatsView.as_view(), name='user-stats'),
 ]
