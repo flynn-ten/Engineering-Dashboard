@@ -12,6 +12,15 @@ from django.db import connection
 
 from .models import UserProfile, active_work_orders
 from .serializers import UserSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+
+def get_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+    refresh['role'] = user.role  # Menambahkan role ke payload token
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]

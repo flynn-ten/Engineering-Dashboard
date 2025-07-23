@@ -1,385 +1,496 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import supabase from "@/lib/supabase";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Clock, Zap, Wrench } from "lucide-react";
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell
-} from "recharts";
-import { RoleIndicator } from "@/components/role-indicator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Search, Calendar, Clock, User, Wrench, AlertCircle, CheckCircle, MoreHorizontal, XCircle } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-// ✅ Dummy data tetap aman
-const energyData = [
-  { name: "Sen", listrik: 1200, air: 800, cng: 400 },
-  { name: "Sel", listrik: 1100, air: 750, cng: 380 },
-  { name: "Rab", listrik: 1300, air: 820, cng: 420 },
-  { name: "Kam", listrik: 1250, air: 790, cng: 410 },
-  { name: "Jum", listrik: 1400, air: 850, cng: 450 },
-  { name: "Sab", listrik: 900, air: 600, cng: 300 },
-  { name: "Min", listrik: 800, air: 550, cng: 280 },
-];
+// Dummy data untuk Work Orders
+const workOrders = [
+  {
+    id: "WO-2024-001",
+    title: "Perbaikan Pompa Air Utama",
+    description: "Pompa air utama mengalami kebocoran dan perlu perbaikan segera",
+    category: "MTC",
+    type: "Unplanned",
+    priority: "High",
+    status: "In Progress",
+    assignee: "Ahmad Teknisi",
+    requester: "Divisi Produksi",
+    createdDate: "2024-01-15",
+    dueDate: "2024-01-17",
+    completedDate: null,
+    estimatedHours: 8,
+    actualHours: 6,
+  },
+  {
+    id: "WO-2024-002",
+    title: "Maintenance AC Unit 3",
+    description: "Maintenance rutin AC unit 3 sesuai jadwal preventif",
+    category: "MTC",
+    type: "Preventive",
+    priority: "Medium",
+    status: "Open",
+    assignee: "Budi Teknisi",
+    requester: "Engineering",
+    createdDate: "2024-01-14",
+    dueDate: "2024-01-20",
+    completedDate: null,
+    estimatedHours: 4,
+    actualHours: 0,
+  },
+  {
+    id: "WO-2024-003",
+    title: "Kalibrasi Sensor Suhu",
+    description: "Kalibrasi sensor suhu ruang produksi sesuai standar ISO",
+    category: "CAL",
+    type: "Preventive",
+    priority: "Low",
+    status: "Completed",
+    assignee: "Citra Teknisi",
+    requester: "QAC",
+    createdDate: "2024-01-10",
+    dueDate: "2024-01-15",
+    completedDate: "2024-01-14",
+    estimatedHours: 2,
+    actualHours: 1.5,
+  },
+  {
+    id: "WO-2024-004",
+    title: "Penggantian Filter HVAC",
+    description: "Penggantian filter HVAC area clean room",
+    category: "UTY",
+    type: "Preventive",
+    priority: "Medium",
+    status: "Open",
+    assignee: "Dedi Teknisi",
+    requester: "Divisi QC",
+    createdDate: "2024-01-12",
+    dueDate: "2024-01-18",
+    completedDate: null,
+    estimatedHours: 3,
+    actualHours: 0,
+  },
+  {
+    id: "WO-2024-005",
+    title: "Inspeksi Kelistrikan Panel",
+    description: "Inspeksi rutin panel listrik utama dan backup",
+    category: "UTY",
+    type: "Predictive",
+    priority: "High",
+    status: "In Progress",
+    assignee: "Eko Teknisi",
+    requester: "Engineering",
+    createdDate: "2024-01-13",
+    dueDate: "2024-01-16",
+    completedDate: null,
+    estimatedHours: 6,
+    actualHours: 4,
+  },
+]
 
-const woStatusData = [
-  { name: "Open", value: 12, color: "#ef4444" },
-  { name: "In Progress", value: 8, color: "#f59e0b" },
-  { name: "Completed", value: 25, color: "#10b981" },
-];
+// Dummy data untuk Working Requests
+const workingRequests = [
+  {
+    id: "REQ-2024-006",
+    title: "Perbaikan Sistem Ventilasi Ruang Server",
+    description: "Sistem ventilasi ruang server tidak berfungsi optimal, suhu ruangan meningkat",
+    category: "UTY",
+    priority: "High",
+    requester: "IT Department",
+    requestDate: "2024-01-16",
+    estimatedCost: 5000000,
+    urgency: "Urgent",
+    location: "Server Room - Lantai 3",
+  },
+  {
+    id: "REQ-2024-007",
+    title: "Kalibrasi Ulang Pressure Gauge",
+    description: "Pressure gauge di line produksi menunjukkan pembacaan yang tidak akurat",
+    category: "CAL",
+    priority: "Medium",
+    requester: "Production Team",
+    requestDate: "2024-01-15",
+    estimatedCost: 1200000,
+    urgency: "Normal",
+    location: "Production Line 2",
+  },
+  {
+    id: "REQ-2024-008",
+    title: "Maintenance Conveyor Belt Motor",
+    description: "Motor conveyor belt mengeluarkan suara tidak normal dan getaran berlebih",
+    category: "MTC",
+    priority: "High",
+    requester: "Production Supervisor",
+    requestDate: "2024-01-14",
+    estimatedCost: 3500000,
+    urgency: "Urgent",
+    location: "Production Area A",
+  },
+  {
+    id: "REQ-2024-009",
+    title: "Penggantian Lampu Emergency Exit",
+    description: "Beberapa lampu emergency exit tidak menyala dan perlu diganti",
+    category: "UTY",
+    priority: "Low",
+    requester: "Safety Officer",
+    requestDate: "2024-01-13",
+    estimatedCost: 800000,
+    urgency: "Normal",
+    location: "Seluruh Area Pabrik",
+  },
+  {
+    id: "REQ-2024-010",
+    title: "Inspeksi dan Servis Crane Overhead",
+    description: "Crane overhead perlu inspeksi rutin dan servis sesuai jadwal maintenance",
+    category: "MTC",
+    priority: "Medium",
+    requester: "Warehouse Manager",
+    requestDate: "2024-01-12",
+    estimatedCost: 4200000,
+    urgency: "Normal",
+    location: "Warehouse - Area Loading",
+  },
+]
 
-const mttrData = [
-  { month: "Jan", mttr: 4.2, mtbf: 120 },
-  { month: "Feb", mttr: 3.8, mtbf: 135 },
-  { month: "Mar", mttr: 4.5, mtbf: 110 },
-  { month: "Apr", mttr: 3.2, mtbf: 145 },
-  { month: "Mei", mttr: 3.9, mtbf: 125 },
-  { month: "Jun", mttr: 3.1, mtbf: 150 },
-];
-
-export default function Dashboard() {
-  const router = useRouter();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [role, setRole] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeWorkOrders, setActiveWorkOrders] = useState(0);
-  const [lastWeekChange, setLastWeekChange] = useState(0);
-  const [unreleasedWorkOrders, setUnreleasedWorkOrders] = useState(0);
-  const [unreleasedLastWeekChange, setUnreleasedLastWeekChange] = useState(0);
-  
-
-  useEffect(() => {
-    // Check for authentication and redirect if needed
-    const access = localStorage.getItem("access");
-    const userJson = localStorage.getItem("user");
-
-    if (!access || !userJson || userJson === "undefined") {
-      router.push("/login");
-      return;
+export default function WorkOrdersPage() {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Open":
+        return "bg-blue-100 text-blue-800"
+      case "In Progress":
+        return "bg-yellow-100 text-yellow-800"
+      case "Completed":
+        return "bg-green-100 text-green-800"
+      default:
+        return "bg-gray-100 text-gray-800"
     }
+  }
 
-    try {
-      const user = JSON.parse(userJson);
-      const userRole = user.userprofile?.role || user.role;
-
-      if (!userRole) {
-        router.push("/login");
-        return;
-      }
-
-      setCurrentUser(user);
-      setRole(userRole);
-      setIsLoading(false);
-    } catch {
-      router.push("/login");
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "High":
+        return "destructive"
+      case "Medium":
+        return "default"
+      case "Low":
+        return "secondary"
+      default:
+        return "outline"
     }
+  }
 
-    // Fetch Active Work Orders from Django API
-    fetch("http://localhost:8000/api/active-work-orders/")
-      .then((response) => response.json())
-      .then((data) => {
-        // Assuming data is an array of active work orders, get the first (latest) entry
-        const latestData = data[0];
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "MTC":
+        return "bg-purple-100 text-purple-800"
+      case "CAL":
+        return "bg-orange-100 text-orange-800"
+      case "UTY":
+        return "bg-cyan-100 text-cyan-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
 
-        setActiveWorkOrders(latestData.released_count); // Set the active work orders count
-        setLastWeekChange(latestData.diff_from_last_week); // Set the difference from the previous week
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-        setIsLoading(false);
-      });
-  }, []);
+  const handleApprove = () => {
+    alert(`Request approved! Work Order will be created.`)
+  }
 
-  //fetch unreleased work orders
-  useEffect(() => {
-    fetch("http://localhost:8000/api/unreleased-work-orders/")
-      .then((response) => response.json())
-      .then((data) => {
-        // Assuming data is an array of active work orders, get the first (latest) entry
-        const latestData = data[0];
-
-        setUnreleasedWorkOrders(latestData.unreleased_count); // Set the unreleased work orders count
-        setUnreleasedLastWeekChange(latestData.diff_from_last_week_unreleased); // Set the difference from the previous week
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-        setIsLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('work_orders_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'main_data',
-        },
-        (payload) => {
-          console.log("Change detected:", payload);
-          // Handle data changes
-          // Re-fetch or update the state based on the change type (INSERT, UPDATE, DELETE)
-          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-            fetch("http://localhost:8000/api/active-work-orders/")
-              .then((response) => response.json())
-              .then((data) => {
-                const latestData = data[0];
-                setActiveWorkOrders(latestData.released_count);
-                setLastWeekChange(latestData.diff_from_last_week);
-              });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  if (isLoading) {
-    return <div className="p-8 text-muted-foreground text-center">⏳ Mengalihkan ke dashboard...</div>;
+  const handleCancel = () => {
+    alert(`Request has been cancelled.`)
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger className="-ml-1" />
         <div className="flex flex-1 items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold">Engineering Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Selamat datang di platform monitoring teknis terintegrasi</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-green-600 border-green-600">
-              System Online
-            </Badge>
+            <h1 className="text-lg font-semibold">Work Orders Management</h1>
+            <p className="text-sm text-muted-foreground">Kelola dan pantau semua work orders</p>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 space-y-6 p-6">
-        {/* Role Indicator */}
-        {role && <RoleIndicator currentRole={role} />}
-
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Work Orders</CardTitle>
+              <CardTitle className="text-sm font-medium">Total WO</CardTitle>
               <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{activeWorkOrders}</div>
-              <p className="text-xs text-muted-foreground">
-                <span className={`text-${lastWeekChange >= 0 ? "green" : "red"}-500`}>
-                  {lastWeekChange >= 0 ? `+${lastWeekChange} ` : lastWeekChange}
-                </span>
-                from last week
-              </p>
+              <div className="text-2xl font-bold">{workOrders.length}</div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Unrelease Work Orders</CardTitle>
-              <Wrench className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Open</CardTitle>
+              <AlertCircle className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{unreleasedWorkOrders}</div>
-              <p className="text-xs text-muted-foreground">
-                <span className={`text-${unreleasedLastWeekChange >= 0 ? "green" : "red"}-500`}>
-                  {unreleasedLastWeekChange >= 0 ? `+${unreleasedLastWeekChange} ` : unreleasedLastWeekChange}
-                </span>
-                from last week
-              </p>
+              <div className="text-2xl font-bold text-blue-600">
+                {workOrders.filter((wo) => wo.status === "Open").length}
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Energy Efficiency</CardTitle>
-              <Zap className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">87%</div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-green-500">+5%</span> dari bulan lalu
-              </p>
+              <div className="text-2xl font-bold text-yellow-600">
+                {workOrders.filter((wo) => wo.status === "In Progress").length}
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">CAPA Overdue</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">Perlu tindakan segera</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {/* Energy Consumption Chart */}
-          <Card className="col-span-2">
-            <CardHeader>
-              <CardTitle>Konsumsi Energi Mingguan</CardTitle>
-              <CardDescription>Monitoring konsumsi listrik, air, dan CNG</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={energyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="listrik" stroke="#3b82f6" strokeWidth={2} />
-                  <Line type="monotone" dataKey="air" stroke="#10b981" strokeWidth={2} />
-                  <Line type="monotone" dataKey="cng" stroke="#f59e0b" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* WO Status Pie Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Status Work Orders</CardTitle>
-              <CardDescription>Distribusi status WO aktif</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={woStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {woStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-4 space-y-2">
-                {woStatusData.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span>{item.name}</span>
-                    </div>
-                    <span className="font-medium">{item.value}</span>
-                  </div>
-                ))}
+              <div className="text-2xl font-bold text-green-600">
+                {workOrders.filter((wo) => wo.status === "Completed").length}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* MTTR/MTBF Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Analisis MTTR & MTBF</CardTitle>
-            <CardDescription>Mean Time To Repair dan Mean Time Between Failures (6 bulan terakhir)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={mttrData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Bar yAxisId="left" dataKey="mttr" fill="#ef4444" name="MTTR (jam)" />
-                <Bar yAxisId="right" dataKey="mtbf" fill="#10b981" name="MTBF (jam)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="requests" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="requests">Working Requests</TabsTrigger>
+            <TabsTrigger value="workorders">Active Work Orders</TabsTrigger>
+          </TabsList>
 
-        {/* Recent WO & Notifications */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Recent Work Orders */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Work Orders Terbaru</CardTitle>
-              <CardDescription>5 WO terakhir yang dibuat</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { id: "WO-2024-001", title: "Perbaikan Pompa Air", status: "In Progress", priority: "High" },
-                { id: "WO-2024-002", title: "Maintenance AC Unit 3", status: "Open", priority: "Medium" },
-                { id: "WO-2024-003", title: "Kalibrasi Sensor Suhu", status: "Completed", priority: "Low" },
-                { id: "WO-2024-004", title: "Penggantian Filter", status: "Open", priority: "Medium" },
-                { id: "WO-2024-005", title: "Inspeksi Kelistrikan", status: "In Progress", priority: "High" },
-              ].map((wo) => (
-                <div key={wo.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{wo.title}</p>
-                    <p className="text-xs text-muted-foreground">{wo.id}</p>
+          <TabsContent value="requests" className="space-y-4">
+            {/* Filter & Pencarian untuk Requests */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Filter & Pencarian</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="Cari request berdasarkan ID, judul, atau deskripsi..." className="pl-8" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={
-                      wo.priority === "High" ? "destructive" : wo.priority === "Medium" ? "default" : "secondary"
-                    }>
-                      {wo.priority}
-                    </Badge>
-                    <Badge
-                      variant={wo.status === "Completed" ? "default" : "outline"}
-                      className={wo.status === "Completed" ? "bg-green-100 text-green-800" : ""}
-                    >
-                      {wo.status}
-                    </Badge>
-                  </div>
+                  <Select>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Prioritas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Prioritas</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Kategori</SelectItem>
+                      <SelectItem value="mtc">MTC</SelectItem>
+                      <SelectItem value="cal">CAL</SelectItem>
+                      <SelectItem value="uty">UTY</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Notifications */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Notifikasi & Peringatan</CardTitle>
-              <CardDescription>Peringatan sistem terbaru</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { type: "warning", title: "Konsumsi Listrik Tinggi", message: "Konsumsi listrik hari ini melebihi budget 15%", time: "2 jam lalu" },
-                { type: "error", title: "CAPA Overdue", message: "3 CAPA melewati due date dan perlu tindakan", time: "4 jam lalu" },
-                { type: "info", title: "WO Completed", message: "WO-2024-003 telah diselesaikan oleh teknisi", time: "6 jam lalu" },
-                { type: "warning", title: "Maintenance Schedule", message: "Jadwal maintenance preventif besok pagi", time: "1 hari lalu" },
-              ].map((notif, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 border rounded-lg">
-                  <div className={`mt-0.5 w-2 h-2 rounded-full ${
-                    notif.type === "error" ? "bg-red-500" :
-                    notif.type === "warning" ? "bg-yellow-500" : "bg-blue-500"
-                  }`} />
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium">{notif.title}</p>
-                    <p className="text-xs text-muted-foreground">{notif.message}</p>
-                    <p className="text-xs text-muted-foreground">{notif.time}</p>
-                  </div>
+            {/* Working Requests List */}
+            <div className="space-y-4">
+              {workingRequests.length === 0 ? (
+                <Alert>
+                  <AlertDescription>Tidak ada working request yang menunggu persetujuan saat ini.</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-4">
+                  {workingRequests.map((request) => (
+                    <Card key={request.id}>
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-3 flex-1">
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-lg font-semibold">{request.title}</h3>
+                              <Badge variant="outline">{request.id}</Badge>
+                              <Badge className={getCategoryColor(request.category)}>{request.category}</Badge>
+                              <Badge variant={getPriorityColor(request.priority)}>{request.priority}</Badge>
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                {request.urgency}
+                              </Badge>
+                            </div>
+
+                            <p className="text-sm text-muted-foreground">{request.description}</p>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <span>Requester: {request.requester}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span>Date: {request.requestDate}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground">
+                                  Cost: Rp {request.estimatedCost.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground">Location: {request.location}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleApprove}>
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={handleCancel}>
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="workorders" className="space-y-4">
+            {/* Filter & Pencarian untuk Work Orders */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Filter & Pencarian</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="Cari WO berdasarkan ID, judul, atau deskripsi..." className="pl-8" />
+                    </div>
+                  </div>
+                  <Select>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Kategori</SelectItem>
+                      <SelectItem value="mtc">MTC</SelectItem>
+                      <SelectItem value="cal">CAL</SelectItem>
+                      <SelectItem value="uty">UTY</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Prioritas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Prioritas</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Active Work Orders List */}
+            <div className="space-y-4">
+              {workOrders.map((wo) => (
+                <Card key={wo.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-3 flex-1">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-lg font-semibold">{wo.title}</h3>
+                          <Badge variant="outline">{wo.id}</Badge>
+                          <Badge className={getCategoryColor(wo.category)}>{wo.category}</Badge>
+                          <Badge variant={getPriorityColor(wo.priority)}>{wo.priority}</Badge>
+                          <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground">{wo.description}</p>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span>Assignee: {wo.assignee}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span>Due: {wo.dueDate}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span>Est: {wo.estimatedHours}h</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Wrench className="h-4 w-4 text-muted-foreground" />
+                            <span>Type: {wo.type}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>View Details</DropdownMenuItem>
+                          <DropdownMenuItem>Edit WO</DropdownMenuItem>
+                          <DropdownMenuItem>Update Status</DropdownMenuItem>
+                          <DropdownMenuItem>Add Comment</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">Close WO</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
-  );
+  )
 }

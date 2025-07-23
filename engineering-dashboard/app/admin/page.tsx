@@ -64,7 +64,7 @@ export default function AdminPage() {
 useEffect(() => {
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = localStorage.getItem("access");
 
       let res = await fetch("http://localhost:8000/api/users/", {
         headers: {

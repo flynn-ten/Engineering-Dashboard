@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
-import Link from "next/link"
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Sidebar,
   SidebarContent,
@@ -15,9 +15,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +25,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   BarChart3,
   Building2,
@@ -37,8 +37,9 @@ import {
   Wrench,
   Zap,
   ChevronUp,
-} from "lucide-react"
+} from "lucide-react";
 
+// Daftar menu
 const menuItems = [
   { title: "Dashboard", url: "/", icon: Home, roles: ["admin", "engineer", "utility", "requester", "qac"] },
   { title: "Work Orders", url: "/wo", icon: Wrench, roles: ["admin", "engineer"], badge: "12" },
@@ -48,60 +49,78 @@ const menuItems = [
   { title: "Compliance", url: "/compliance", icon: Shield, roles: ["admin", "qac"], badge: "3" },
   { title: "Files", url: "/files", icon: FileText, roles: ["admin", "engineer", "utility", "requester", "qac"] },
   { title: "Admin", url: "/admin", icon: Settings, roles: ["admin"] },
-]
+];
 
-// Custom hook buat cek client-side render
+// Custom hook untuk cek client-side render
 function useHasMounted() {
-  const [hasMounted, setHasMounted] = useState(false)
+  const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
-    setHasMounted(true)
-  }, [])
-  return hasMounted
+    setHasMounted(true);
+  }, []);
+  return hasMounted;
 }
 
 export function AppSidebar() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const hasMounted = useHasMounted()
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const pathname = usePathname();
+  const router = useRouter();
+  const hasMounted = useHasMounted();
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
-  useEffect(() => {
-    const access = localStorage.getItem("access")
-    const userJson = localStorage.getItem("user")
+  // Function untuk update user saat login/logout
+  const updateUserFromLocalStorage = () => {
+    const access = localStorage.getItem("access");
+    const userJson = localStorage.getItem("user");
 
     if (access && userJson && userJson !== "undefined") {
       try {
-        const user = JSON.parse(userJson)
-        setCurrentUser(user)
+        const user = JSON.parse(userJson);
+        setCurrentUser(user); // Set currentUser state
+
+        const currentRole = user.userprofile?.role || user.role;
+        console.log("User Role:", currentRole); // Log current role
       } catch (err) {
-        console.error("Failed to parse user", err)
+        console.error("Failed to parse user", err);
       }
+    } else {
+      // Jika tidak ada user atau access token, set currentUser ke null (logout)
+      setCurrentUser(null);
     }
-  }, [])
+  };
 
-  // ⛔️ Jangan render apapun sebelum mount (hindari hydration error)
-  if (!hasMounted) return null
+  // Gunakan useEffect untuk memantau perubahan localStorage
+  useEffect(() => {
+    updateUserFromLocalStorage(); // Update user saat pertama kali render
+    window.addEventListener("storage", updateUserFromLocalStorage); // Tambahkan listener untuk perubahan localStorage
 
-  const isAuthPage = pathname === "/login"
-  const accessToken = localStorage.getItem("access")
+    // Cleanup listener saat komponen di-unmount
+    return () => {
+      window.removeEventListener("storage", updateUserFromLocalStorage);
+    };
+  }, []);
 
-  // 🚫 Sembunyikan sidebar di halaman login atau kalau belum login
-  if (isAuthPage || !accessToken) return null
+  // Jangan render sebelum mount (hindari hydration error)
+  if (!hasMounted) return null;
 
-  // ⏳ Loading saat user belum ready
+  const isAuthPage = pathname === "/login";
+  const accessToken = localStorage.getItem("access");
+
+  // Sembunyikan sidebar jika di halaman login atau tidak ada akses token
+  if (isAuthPage || !accessToken) return null;
+
+  // Loading saat currentUser belum siap
   if (!currentUser) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
         ⏳ Loading sidebar...
       </div>
-    )
+    );
   }
 
-  const currentRole = currentUser.userprofile?.role || currentUser.role
-  const filteredMenuItems = menuItems.filter((item) => item.roles.includes(currentRole))
+  const currentRole = currentUser.userprofile?.role || currentUser.role;
+  const filteredMenuItems = menuItems.filter((item) => item.roles.includes(currentRole));
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar key={currentUser?.username} collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -178,19 +197,18 @@ export function AppSidebar() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-  <span className="truncate font-semibold">{currentUser.username}</span>
-  <span className="truncate text-xs text-muted-foreground">
-    {currentUser.userprofile?.role || "Role tidak tersedia"}
-  </span>
-</div>
-
+                      <span className="truncate font-semibold">{currentUser.username}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {currentUser.userprofile?.role || "Role tidak tersedia"}
+                      </span>
+                    </div>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
-                    localStorage.clear()
-                    router.push("/login")
+                    localStorage.clear();
+                    router.push("/login");
                   }}
                 >
                   <span>Sign out</span>
@@ -203,5 +221,5 @@ export function AppSidebar() {
 
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
