@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -13,6 +14,7 @@ export default function LoginPage() {
     setError('');
 
     try {
+      // Step 1: Login → get token
       const res = await fetch('http://localhost:8000/api/token/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -27,33 +29,34 @@ export default function LoginPage() {
         return;
       }
 
+      // Simpan access & refresh token
       localStorage.setItem('access', data.access);
       localStorage.setItem('refresh', data.refresh);
+      
 
-      // 👇 Tambahkan logging sebelum dan sesudah fetch user info
       console.log('🔐 Access Token:', data.access);
-      console.log("🔑 Bearer Token:", `Bearer ${data.access}`);
 
-const userInfo = await fetch('http://localhost:8000/api/me/', {
-  method: 'GET',
-  headers: {
-    'Authorization': `Bearer ${data.access}`,
-    'Content-Type': 'application/json',
-  },
-});
-
-
-console.log('🔐 Token JWT:', data.access);
+      // Step 2: Fetch user info
+      const userInfo = await fetch('http://localhost:8000/api/me/', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${data.access}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
       if (!userInfo.ok) {
         const text = await userInfo.text();
-        console.error('❌ Gagal ambil user info:', text);  // ✅ Debug info
+        console.error('Gagal ambil user info:', text);
         setError('Gagal mendapatkan data user');
         return;
       }
 
       const user = await userInfo.json();
-      console.log('✅ User Data:', user); // ✅ Debug user info
+      console.log('User Data:', user);
+
+      // Simpan user ke localStorage
+      localStorage.setItem('user', JSON.stringify(user));
 
       const role = user.userprofile?.role;
 
@@ -62,7 +65,7 @@ console.log('🔐 Token JWT:', data.access);
         return;
       }
 
-      // 🚀 Redirect
+      // Step 3: Redirect berdasarkan role
       if (role === 'admin') router.push('/admin');
       else if (role === 'engineer') router.push('/wo');
       else if (role === 'utility') router.push('/energy');

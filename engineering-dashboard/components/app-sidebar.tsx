@@ -65,30 +65,20 @@ export function AppSidebar() {
   const hasMounted = useHasMounted()
   const [currentUser, setCurrentUser] = useState<any>(null)
 
-<<<<<<< Updated upstream
-  // ✅ Pastikan semua hooks dipanggil sebelum `return`
-=======
->>>>>>> Stashed changes
   useEffect(() => {
     const access = localStorage.getItem("access")
     const userJson = localStorage.getItem("user")
 
-    if (access && userJson) {
+    if (access && userJson && userJson !== "undefined") {
       try {
         const user = JSON.parse(userJson)
         setCurrentUser(user)
       } catch (err) {
-        console.error("Failed to parse user data")
+        console.error("Failed to parse user", err)
       }
     }
   }, [])
 
-<<<<<<< Updated upstream
-  const shouldHideSidebar = pathname === "/login" || pathname === "/regist"
-  if (shouldHideSidebar || !isLoggedIn || !currentUser) return null
-
-  const currentRole = currentUser.role
-=======
   // ⛔️ Jangan render apapun sebelum mount (hindari hydration error)
   if (!hasMounted) return null
 
@@ -108,7 +98,6 @@ export function AppSidebar() {
   }
 
   const currentRole = currentUser.userprofile?.role || currentUser.role
->>>>>>> Stashed changes
   const filteredMenuItems = menuItems.filter((item) => item.roles.includes(currentRole))
 
   return (
@@ -160,34 +149,50 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src="/placeholder-user.jpg" alt={currentUser.name} />
-                    <AvatarFallback className="rounded-lg">{currentUser.avatar}</AvatarFallback>
+                    <AvatarImage src="/placeholder-user.jpg" alt={currentUser.username} />
+                    <AvatarFallback className="rounded-lg">
+                      {currentUser.username?.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">{currentUser.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">{currentUser.email}</span>
+                    <span className="truncate font-semibold">{currentUser.username}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {currentUser.userprofile?.role || "Role tidak tersedia"}
+                    </span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
+              <DropdownMenuContent
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                side="bottom"
+                align="end"
+                sideOffset={4}
+              >
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage src="/placeholder-user.jpg" alt={currentUser.name} />
-                      <AvatarFallback className="rounded-lg">{currentUser.avatar}</AvatarFallback>
+                      <AvatarImage src="/placeholder-user.jpg" alt={currentUser.username} />
+                      <AvatarFallback className="rounded-lg">
+                        {currentUser.username?.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">{currentUser.name}</span>
-                      <span className="truncate text-xs text-muted-foreground">{currentUser.email}</span>
-                    </div>
+  <span className="truncate font-semibold">{currentUser.username}</span>
+  <span className="truncate text-xs text-muted-foreground">
+    {currentUser.userprofile?.role || "Role tidak tersedia"}
+  </span>
+</div>
+
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => {
-                  localStorage.clear()
-                  router.push("/login")
-                }}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    localStorage.clear()
+                    router.push("/login")
+                  }}
+                >
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

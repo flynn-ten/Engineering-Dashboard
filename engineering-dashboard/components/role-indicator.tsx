@@ -39,7 +39,7 @@ const rolePermissions = {
     icon: Zap,
     permissions: ["Dashboard Overview", "Energy Data Input", "Energy Monitoring", "Utility Reports"],
   },
-  division: {
+  requester: {
     name: "Division User",
     description: "Request submission and status tracking",
     color: "outline",
