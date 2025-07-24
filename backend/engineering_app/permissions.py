@@ -8,3 +8,12 @@ class IsAdminUserProfile(BasePermission):
             and hasattr(request.user, 'userprofile')
             and request.user.userprofile.role == 'admin'
         )
+
+from rest_framework import serializers
+from .models import WorkRequest
+
+class WorkRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkRequest
+        fields = '__all__'
+        read_only_fields = ['user']

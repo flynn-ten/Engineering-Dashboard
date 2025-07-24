@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Upload, Download, Search, Filter, MoreHorizontal, Eye, Folder, Calendar, User } from "lucide-react"
+import { FileText, Upload, Search, Filter, MoreHorizontal, Eye, Folder, Calendar, User } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 // Dummy data untuk files
@@ -141,10 +141,6 @@ export default function FilesPage() {
             <h1 className="text-lg font-semibold">File Management</h1>
             <p className="text-sm text-muted-foreground">Kelola dokumen SOP, manual, dan file teknis</p>
           </div>
-          <Button className="gap-2">
-            <Upload className="h-4 w-4" />
-            Upload File
-          </Button>
         </div>
       </header>
 
