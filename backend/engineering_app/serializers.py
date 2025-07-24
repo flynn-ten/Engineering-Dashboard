@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import UserProfile
+from .models import WorkRequest
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,3 +30,9 @@ class UserProfileWithUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['id', 'full_name', 'email', 'role', 'division', 'status', 'avatar', 'date_joined']
+
+class WorkRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkRequest
+        fields = '__all__'
+        read_only_fields = ['user']

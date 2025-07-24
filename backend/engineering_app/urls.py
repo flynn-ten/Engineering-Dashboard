@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import MeView, RegisterUserView, DivisionListView
 from . import views
-from .views import MeView, RegisterUserView, DivisionListView, UserListView, UserStatsView
+from .views import MeView, RegisterUserView, DivisionListView, UserListView, UserStatsView, create_work_request
+
 
 urlpatterns = [
     path('me/', MeView.as_view()),
@@ -13,4 +14,5 @@ urlpatterns = [
     path('work-request/', views.work_request_list),
     path("users/", UserListView.as_view(), name="user-list"),
     path('users/stats/', UserStatsView.as_view(), name='user-stats'),
+    path('work-request/create/', create_work_request, name='create-work-request'),
 ]

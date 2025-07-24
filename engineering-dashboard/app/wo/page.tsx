@@ -69,11 +69,11 @@ const workingRequests = [
   },
 ]
   const handleApprove = (requestId: string) => {
-    alert(`Request ${requestId} approved! Work Order will be created.`)
+    alert('Request ${requestId} approved! Work Order will be created.')
   }
 
   const handleCancel = (requestId: string) => {
-    alert(`Request ${requestId} has been cancelled.`)
+    alert('Request ${requestId} has been cancelled.')
   }
 
 const WorkOrdersPage = () => {

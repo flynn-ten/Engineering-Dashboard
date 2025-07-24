@@ -88,6 +88,7 @@ class UserStatsView(APIView):
             "total_users": total_users,
             "active_users": active_users
         })
+        
 def active_work_orders(request):
     # Raw SQL to query active work orders
     with connection.cursor() as cursor:
@@ -246,3 +247,22 @@ def work_request_list(request):
         for row in rows
     ]
     return JsonResponse(work_request, safe=False)
+
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .serializers import WorkRequestSerializer
+from .models import WorkRequest
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_work_request(request):
+    data = request.data.copy()
+    data['user'] = request.user.id  # ambil user login
+    serializer = WorkRequestSerializer(data=data)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)

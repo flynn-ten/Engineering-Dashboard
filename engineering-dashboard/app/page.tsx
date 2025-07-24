@@ -52,7 +52,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Check for authentication and redirect if needed
-    const access = localStorage.getItem("access");
+    const access = localStorage.getItem("accessToken");
     const userJson = localStorage.getItem("user");
 
     if (!access || !userJson || userJson === "undefined") {
