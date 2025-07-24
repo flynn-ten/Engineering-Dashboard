@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wrench, AlertCircle, Clock, CheckCircle, User, Calendar, MoreHorizontal } from "lucide-react";
+import { Search, Calendar, Clock, User, Wrench, AlertCircle, CheckCircle, MoreHorizontal, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,70 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import supabase from "@/lib/supabase";
+const workingRequests = [
+  {
+    id: "REQ-2024-006",
+    title: "Perbaikan Sistem Ventilasi Ruang Server",
+    description: "Sistem ventilasi ruang server tidak berfungsi optimal, suhu ruangan meningkat",
+    category: "UTY",
+    requester: "IT Department",
+    requestDate: "2024-01-16",
+    estimatedCost: 5000000,
+    urgency: "Urgent",
+    location: "Server Room - Lantai 3",
+  },
+  {
+    id: "REQ-2024-007",
+    title: "Kalibrasi Ulang Pressure Gauge",
+    description: "Pressure gauge di line produksi menunjukkan pembacaan yang tidak akurat",
+    category: "CAL",
+    requester: "Production Team",
+    requestDate: "2024-01-15",
+    estimatedCost: 1200000,
+    urgency: "Normal",
+    location: "Production Line 2",
+  },
+  {
+    id: "REQ-2024-008",
+    title: "Maintenance Conveyor Belt Motor",
+    description: "Motor conveyor belt mengeluarkan suara tidak normal dan getaran berlebih",
+    category: "MTC",
+    requester: "Production Supervisor",
+    requestDate: "2024-01-14",
+    estimatedCost: 3500000,
+    urgency: "Urgent",
+    location: "Production Area A",
+  },
+  {
+    id: "REQ-2024-009",
+    title: "Penggantian Lampu Emergency Exit",
+    description: "Beberapa lampu emergency exit tidak menyala dan perlu diganti",
+    category: "UTY",
+    requester: "Safety Officer",
+    requestDate: "2024-01-13",
+    estimatedCost: 800000,
+    urgency: "Normal",
+    location: "Seluruh Area Pabrik",
+  },
+  {
+    id: "REQ-2024-010",
+    title: "Inspeksi dan Servis Crane Overhead",
+    description: "Crane overhead perlu inspeksi rutin dan servis sesuai jadwal maintenance",
+    category: "MTC",
+    requester: "Warehouse Manager",
+    requestDate: "2024-01-12",
+    estimatedCost: 4200000,
+    urgency: "Normal",
+    location: "Warehouse - Area Loading",
+  },
+]
+  const handleApprove = (requestId: string) => {
+    alert(`Request ${requestId} approved! Work Order will be created.`)
+  }
+
+  const handleCancel = (requestId: string) => {
+    alert(`Request ${requestId} has been cancelled.`)
+  }
 
 const WorkOrdersPage = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -240,7 +304,7 @@ const WorkOrdersPage = () => {
         <Tabs defaultValue="list" className="space-y-4">
           <TabsList>
             <TabsTrigger value="list">List View</TabsTrigger>
-            <TabsTrigger value="kanban">Kanban Board</TabsTrigger>
+            <TabsTrigger value="requests">Working Requests</TabsTrigger>
           </TabsList>
 
           <TabsContent value="list" className="space-y-4">
@@ -296,6 +360,112 @@ const WorkOrdersPage = () => {
                 </CardContent>
               </Card>
             ))}
+          </TabsContent>
+          <TabsContent value="requests" className="space-y-4">
+            {/* Filter & Pencarian untuk Requests */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Filter & Pencarian</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="Cari request berdasarkan ID, judul, atau deskripsi..." className="pl-8" />
+                    </div>
+                  </div>
+                  <Select>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Prioritas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Prioritas</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Kategori</SelectItem>
+                      <SelectItem value="mtc">MTC</SelectItem>
+                      <SelectItem value="cal">CAL</SelectItem>
+                      <SelectItem value="uty">UTY</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Working Requests List */}
+            <div className="space-y-4">
+              {workingRequests.length === 0 ? (
+                <Alert>
+                  <AlertDescription>Tidak ada working request yang menunggu persetujuan saat ini.</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-4">
+                  {workingRequests.map((request) => (
+                    <Card key={request.id}>
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-3 flex-1">
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-lg font-semibold">{request.title}</h3>
+                              <Badge variant="outline">{request.id}</Badge>
+                              <Badge className={getCategoryColor(request.category)}>{request.category}</Badge>
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                {request.urgency}
+                              </Badge>
+                            </div>
+
+                            <p className="text-sm text-muted-foreground">{request.description}</p>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <span>Requester: {request.requester}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span>Date: {request.requestDate}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground">
+                                  Cost: Rp {request.estimatedCost.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground">Location: {request.location}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleApprove(request.id)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleCancel(request.id)}>
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </main>

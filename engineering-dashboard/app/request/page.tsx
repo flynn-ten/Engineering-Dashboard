@@ -39,6 +39,55 @@ const WorkRequestPage = () => {
   const [workRequests, setWorkRequests] = useState<any[]>([]);
   const [filteredWorkRequests, setFilteredWorkRequests] = useState<any[]>([]);
 
+  const assetsByDepartment = {
+  EN: [
+    { id: "EN-001", name: "Generator Utama", description: "Generator 500KVA" },
+    { id: "EN-002", name: "Pompa Air Utama", description: "Pompa Centrifugal 100HP" },
+    { id: "EN-003", name: "Kompresor Udara", description: "Kompresor Screw 75HP" },
+    { id: "EN-004", name: "Panel Listrik Utama", description: "Panel MDP 2000A" },
+    { id: "EN-005", name: "Cooling Tower", description: "Cooling Tower 200RT" },
+  ],
+  GA: [
+    { id: "GA-001", name: "AC Central Lobby", description: "AC VRV 20PK" },
+    { id: "GA-002", name: "Lift Penumpang", description: "Lift 8 Orang" },
+    { id: "GA-003", name: "CCTV System", description: "CCTV 32 Channel" },
+    { id: "GA-004", name: "Fire Alarm Panel", description: "Fire Alarm Addressable" },
+    { id: "GA-005", name: "Access Control", description: "Card Reader System" },
+  ],
+  PD: [
+    { id: "PD-001", name: "Mesin Produksi Line 1", description: "Injection Molding 250T" },
+    { id: "PD-002", name: "Conveyor Belt A", description: "Belt Conveyor 50m" },
+    { id: "PD-003", name: "Robot Welding", description: "Welding Robot 6-Axis" },
+    { id: "PD-004", name: "Oven Curing", description: "Industrial Oven 200°C" },
+    { id: "PD-005", name: "Packaging Machine", description: "Auto Packaging Line" },
+  ],
+  QA: [
+    { id: "QA-001", name: "CMM Machine", description: "Coordinate Measuring Machine" },
+    { id: "QA-002", name: "Hardness Tester", description: "Rockwell Hardness Tester" },
+    { id: "QA-003", name: "Surface Roughness", description: "Surface Roughness Tester" },
+    { id: "QA-004", name: "Optical Comparator", description: "Profile Projector 300mm" },
+  ],
+  QC: [
+    { id: "QC-001", name: "Timbangan Digital", description: "Digital Scale 0.1mg" },
+    { id: "QC-002", name: "pH Meter", description: "Digital pH Meter" },
+    { id: "QC-003", name: "Spektrofotometer", description: "UV-Vis Spectrophotometer" },
+    { id: "QC-004", name: "Mikroskop", description: "Digital Microscope 1000x" },
+    { id: "QC-005", name: "Oven Lab", description: "Laboratory Oven 300°C" },
+  ],
+  RD: [
+    { id: "RD-001", name: "3D Printer", description: "Industrial 3D Printer" },
+    { id: "RD-002", name: "CAD Workstation", description: "High-End CAD Computer" },
+    { id: "RD-003", name: "Testing Equipment", description: "Material Testing Machine" },
+    { id: "RD-004", name: "Prototype Tools", description: "CNC Prototype Machine" },
+  ],
+  WH: [
+    { id: "WH-001", name: "Forklift Electric", description: "Electric Forklift 3T" },
+    { id: "WH-002", name: "Crane Overhead", description: "Overhead Crane 5T" },
+    { id: "WH-003", name: "Pallet Jack", description: "Manual Pallet Jack 2.5T" },
+    { id: "WH-004", name: "Conveyor System", description: "Warehouse Conveyor" },
+    { id: "WH-005", name: "Barcode Scanner", description: "Wireless Barcode Scanner" },
+  ],
+}
   // Fetching data from API
   useEffect(() => {
     fetch("http://localhost:8000/api/work-request/")
@@ -65,7 +114,16 @@ const WorkRequestPage = () => {
         setIsLoading(false);
       });
   }, []);
+  const [selectedDepartment, setSelectedDepartment] = useState("")
+  const [selectedAsset, setSelectedAsset] = useState("")
+  const [availableAssets, setAvailableAssets] = useState([])
 
+  // Update available assets when department changes
+  const handleDepartmentChange = (department) => {
+    setSelectedDepartment(department)
+    setSelectedAsset("") // Reset asset selection
+    setAvailableAssets(assetsByDepartment[department] || [])
+  }
   // Filter work orders based on week selection
   useEffect(() => {
     // First filter by week_of_month if it's not null
@@ -313,93 +371,61 @@ const WorkRequestPage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="title">Judul Request *</Label>
                     <Input id="title" placeholder="Masukkan judul request..." />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="category">Kategori *</Label>
-                    <Select>
+                    <Label htmlFor="description">Request Description/Deskripsi Detail *</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Jelaskan secara detail masalah yang dihadapi, gejala yang terlihat, dan tindakan yang diharapkan..."
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="assetDepartment">Asset Department *</Label>
+                    <Select value={selectedDepartment} onValueChange={handleDepartmentChange}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Pilih kategori" />
+                        <SelectValue placeholder="Pilih department asset" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="mtc">MTC (Maintenance)</SelectItem>
-                        <SelectItem value="cal">CAL (Calibration)</SelectItem>
-                        <SelectItem value="uty">UTY (Utility)</SelectItem>
+                        <SelectItem value="EN">EN - Engineering</SelectItem>
+                        <SelectItem value="GA">GA - General Affairs</SelectItem>
+                        <SelectItem value="PD">PD - Production</SelectItem>
+                        <SelectItem value="QA">QA - Quality Assurance</SelectItem>
+                        <SelectItem value="QC">QC - Quality Control</SelectItem>
+                        <SelectItem value="RD">RD - Research & Development</SelectItem>
+                        <SelectItem value="WH">WH - Warehouse</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="priority">Prioritas *</Label>
-                    <Select>
+                    <Label htmlFor="assetNumber">Nomor Asset *</Label>
+                    <Select value={selectedAsset} onValueChange={setSelectedAsset} disabled={!selectedDepartment}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Pilih prioritas" />
+                        <SelectValue
+                          placeholder={selectedDepartment ? "Pilih nomor asset" : "Pilih department terlebih dahulu"}
+                        />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
+                        {availableAssets.map((asset) => (
+                          <SelectItem key={asset.id} value={asset.id}>
+                            {asset.id} - {asset.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {selectedAsset && (
+                      <p className="text-sm text-muted-foreground">
+                        {availableAssets.find((asset) => asset.id === selectedAsset)?.description}
+                      </p>
+                    )}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="urgency">Tingkat Urgensi *</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih tingkat urgensi" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="urgent">Urgent</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="department">Departemen *</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih departemen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="production">Production</SelectItem>
-                        <SelectItem value="qc">Quality Control</SelectItem>
-                        <SelectItem value="hr">Human Resources</SelectItem>
-                        <SelectItem value="admin">Administration</SelectItem>
-                        <SelectItem value="finance">Finance</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Lokasi *</Label>
-                    <Input id="location" placeholder="Contoh: Lantai 2 - Ruang Meeting A" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="estimatedCost">Estimasi Biaya (Rp)</Label>
-                    <Input id="estimatedCost" type="number" placeholder="0" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="requesterEmail">Email Requester *</Label>
-                    <Input id="requesterEmail" type="email" placeholder="email@company.com" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Deskripsi Detail *</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Jelaskan secara detail masalah yang dihadapi, gejala yang terlihat, dan tindakan yang diharapkan..."
-                    rows={4}
-                  />
                 </div>
 
                 <div className="flex justify-end gap-4">
