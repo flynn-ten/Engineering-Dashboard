@@ -33,7 +33,6 @@ export default function LoginPage() {
       localStorage.setItem('access', data.access);
       localStorage.setItem('refresh', data.refresh);
       
-
       console.log('🔐 Access Token:', data.access);
 
       // Step 2: Fetch user info
@@ -58,19 +57,31 @@ export default function LoginPage() {
       // Simpan user ke localStorage
       localStorage.setItem('user', JSON.stringify(user));
 
-      const role = user.userprofile?.role;
+      // Ensure role is in lowercase for case-insensitive comparison
+      const role = user.userprofile?.role?.toLowerCase();
 
       if (!role) {
         setError('Login berhasil, tapi role tidak ditemukan');
         return;
       }
 
-      // Step 3: Redirect berdasarkan role
-      if (role === 'admin') router.push('/admin');
-      else if (role === 'engineer') router.push('/wo');
-      else if (role === 'utility') router.push('/energy');
-      else if (role === 'qac') router.push('/compliance');
-      else router.push('/request');
+      // Step 3: Redirect based on role (case-insensitive)
+      if (role === 'admin') {
+        router.push('/admin');
+        console.log('Redirecting to /admin');
+      } else if (role === 'engineer') {
+        router.push('/wo');
+        console.log('Redirecting to /wo');
+      } else if (role === 'utility') {
+        router.push('/energy');
+        console.log('Redirecting to /energy');
+      } else if (role === 'qac') {
+        router.push('/compliance');
+        console.log('Redirecting to /compliance');
+      } else {
+        router.push('/request');
+        console.log('Redirecting to /request');
+      }
 
     } catch (err: any) {
       console.error('Unhandled error:', err);
