@@ -64,7 +64,7 @@ export default function AdminPage() {
 useEffect(() => {
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = localStorage.getItem("access");
 
       let res = await fetch("http://localhost:8000/api/users/", {
         headers: {
@@ -74,7 +74,7 @@ useEffect(() => {
 
       // Kalau token expired, coba refresh token
       if (res.status === 401) {
-        console.warn("Token expired. Trying refresh...");
+        console.warn("Token expired. Trying to refresh...");
 
         const refreshToken = localStorage.getItem("refreshToken");
         const refreshRes = await fetch("http://localhost:8000/api/token/refresh/", {
@@ -86,21 +86,17 @@ useEffect(() => {
         });
 
         if (!refreshRes.ok) {
-  // hapus semua token lama
-  localStorage.removeItem("accessToken")
-  localStorage.removeItem("refreshToken")
-
-  // redirect ke login
-  window.location.href = "/login"
-  throw new Error("Refresh token invalid, please login again")
-}
-
+          console.error("Failed to refresh token, logging out...");
+          localStorage.removeItem("access");
+          localStorage.removeItem("refreshToken");
+          window.location.replace("/login");
+          throw new Error("Refresh token invalid, please login again");
+        }
 
         const refreshData = await refreshRes.json();
-        localStorage.setItem("accessToken", refreshData.access);
-        
+        localStorage.setItem("access", refreshData.access);
 
-        // Retry fetch user dengan token baru
+        // Retry fetching users with the new token
         res = await fetch("http://localhost:8000/api/users/", {
           headers: {
             Authorization: `Bearer ${refreshData.access}`,
@@ -122,7 +118,9 @@ useEffect(() => {
       }
     } catch (err) {
       console.error("Final error fetching users:", err);
-      setUsersData([]);
+      setUsersData([]);  // Reset users data on error
+      // Optionally show an error message to the user
+      setError("Failed to load users.");
     }
   };
 
@@ -596,4 +594,8 @@ const systemSettings = {
       </main>
     </div>
   )
+}
+
+function setError(arg0: string) {
+  throw new Error("Function not implemented.")
 }

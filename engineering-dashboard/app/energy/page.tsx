@@ -1,3 +1,6 @@
+// Next.js + Tailwind + Shadcn EnergyPage component (corrected)
+// Struktur sudah dirapikan, fetch disatukan, date parsing aman
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,17 +24,8 @@ import {
   Area,
   AreaChart,
 } from "recharts"
-
-// Dummy data untuk konsumsi energi
-const energyData = [
-  { date: "2024-01-01", listrik: 1200, air: 800, cng: 400, budget_listrik: 1500, budget_air: 1000, budget_cng: 500 },
-  { date: "2024-01-02", listrik: 1100, air: 750, cng: 380, budget_listrik: 1500, budget_air: 1000, budget_cng: 500 },
-  { date: "2024-01-03", listrik: 1300, air: 820, cng: 420, budget_listrik: 1500, budget_air: 1000, budget_cng: 500 },
-  { date: "2024-01-04", listrik: 1250, air: 790, cng: 410, budget_listrik: 1500, budget_air: 1000, budget_cng: 500 },
-  { date: "2024-01-05", listrik: 1400, air: 850, cng: 450, budget_listrik: 1500, budget_air: 1000, budget_cng: 500 },
-  { date: "2024-01-06", listrik: 1600, air: 950, cng: 480, budget_listrik: 1500, budget_air: 1000, budget_cng: 500 },
-  { date: "2024-01-07", listrik: 1550, air: 920, cng: 470, budget_listrik: 1500, budget_air: 1000, budget_cng: 500 },
-]
+import { act, JSX, use, useEffect, useState } from "react";
+import supabase from "@/lib/supabase";
 
 const monthlyData = [
   { month: "Jan", listrik: 35000, air: 22000, cng: 12000 },
@@ -42,187 +36,196 @@ const monthlyData = [
   { month: "Jun", listrik: 42000, air: 26000, cng: 14500 },
 ]
 
-const todayConsumption = {
-  listrik: { current: 1600, budget: 1500, unit: "kWh" },
-  air: { current: 950, budget: 1000, unit: "m³" },
-  cng: { current: 480, budget: 500, unit: "m³" },
-}
-
 export default function EnergyPage() {
-  const getUsagePercentage = (current: number, budget: number) => {
-    return Math.round((current / budget) * 100)
-  }
+  const [energyData, setEnergyData] = useState<any[]>([]);
+  const [latestDate, setLatestDate] = useState<Date | null>(null);
+  const [filtered, setFiltered] = useState<any[]>([]);
+  const [filtered6Months, setFiltered6Months] = useState<any[]>([]);
 
-  const getUsageStatus = (percentage: number) => {
-    if (percentage > 100) return { color: "text-red-600", bg: "bg-red-100", status: "Over Budget" }
-    if (percentage > 80) return { color: "text-yellow-600", bg: "bg-yellow-100", status: "Warning" }
-    return { color: "text-green-600", bg: "bg-green-100", status: "Normal" }
-  }
+  const [electricity, setElectricity] = useState(0);
+  const [air, setAir] = useState(0);
+  const [cng, setCng] = useState(0);
+
+  const parseDateSafely = (str: string): Date | null => {
+    const isoTry = new Date(str);
+    if (!isNaN(isoTry.getTime())) return isoTry;
+    const parts = str.split("/");
+    if (parts.length === 3) {
+      const [dd, mm, yyyy] = parts;
+      const tryAlt = new Date(`${yyyy}-${mm}-${dd}`);
+      return isNaN(tryAlt.getTime()) ? null : tryAlt;
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/energy/")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!Array.isArray(data)) return;
+
+        const withBudget = data.map((entry: any) => {
+          const date = parseDateSafely(entry.date);
+          return {
+            date: date?.toISOString() || "Invalid",
+            listrik: entry.electricity_consumption ?? 0,
+            air: entry.water_consumption ?? 0,
+            cng: entry.cng_consumption ?? 0,
+            budget_listrik: 15000,
+            budget_air: 10000,
+            budget_cng: 1000,
+          };
+        });
+
+        setEnergyData(withBudget);
+        setElectricity(withBudget.at(-1)?.listrik ?? 0);
+        setAir(withBudget.at(-1)?.air ?? 0);
+        setCng(withBudget.at(-1)?.cng ?? 0);
+
+        const maxDate = new Date(
+          Math.max(...withBudget.map((e) => new Date(e.date).getTime()))
+        );
+        setLatestDate(maxDate);
+
+        const sevenDaysAgo = new Date(maxDate);
+        sevenDaysAgo.setDate(maxDate.getDate() - 7);
+
+        const filtered7 = withBudget.filter((e) => {
+          const d = new Date(e.date);
+          return d >= sevenDaysAgo && d <= maxDate;
+        });
+        setFiltered(filtered7);
+      })
+      .catch((err) => console.error("🔥 Fetch energy error:", err));
+  }, []);
+
+useEffect(() => {
+  fetch("http://localhost:8000/api/energy_monthly/")
+    .then((res) => res.json())
+    .then((data) => {
+      if (!Array.isArray(data)) return;
+
+      // Helper function to parse the month name
+      const parseMonthName = (monthName: string) => {
+        // Append the year to form a valid date string
+        const dateStr = `${monthName} 2024`; // Append a default year
+        const date = new Date(dateStr); // Convert it to a Date object
+        return date;
+      };
+
+      // Map the data to ensure it's parsed correctly
+      const energy_monthly = data.map((entry: any) => {
+        const date = parseMonthName(entry.month_name); // Parse month_name to Date
+        const month = date ? date.toLocaleString('default', { month: 'short' }) : "Invalid"; // Get short month name
+        return {
+          date: date?.toISOString() || "Invalid",
+          month_name: month, // Store the short month name
+          listrik: entry.electricity_monthly ?? 0,
+          air: entry.water_monthly ?? 0,
+          cng: entry.cng_monthly ?? 0,
+        };
+      });
+
+      // Set the energy data
+      setEnergyData(energy_monthly);
+      setElectricity(energy_monthly.at(-1)?.listrik ?? 0);
+      setAir(energy_monthly.at(-1)?.air ?? 0);
+      setCng(energy_monthly.at(-1)?.cng ?? 0);
+
+      // Find the most recent date
+      const maxDate = new Date(
+        Math.max(...energy_monthly.map((e) => new Date(e.date).getTime()))
+      );
+      setLatestDate(maxDate);
+
+      // Calculate the date 6 months ago
+      const sixMonthsAgo = new Date(maxDate);
+      sixMonthsAgo.setMonth(maxDate.getMonth() - 6);
+
+      // Filter the data for the last 6 months
+      const filtered6Months = energy_monthly.filter((e) => {
+        const d = new Date(e.date);
+        return d >= sixMonthsAgo && d <= maxDate;
+      });
+
+      setFiltered6Months(filtered6Months); // Store the filtered data
+    })
+    .catch((err) => console.error("🔥 Fetch energy error:", err));
+}, []);
+
+
+  const getUsagePct = (val: number, budget: number) => Math.round((val / budget) * 100);
+  const getStatus = (pct: number) => {
+    if (pct > 100) return { bg: "bg-red-100", text: "text-red-600", label: "Over" };
+    if (pct > 80) return { bg: "bg-yellow-100", text: "text-yellow-600", label: "Warning" };
+    return { bg: "bg-green-100", text: "text-green-600", label: "Normal" };
+  };
+
+  const CardEnergy = (title: string, icon: JSX.Element, val: number, budget: number, unit: string) => {
+    const pct = getUsagePct(val, budget);
+    const stat = getStatus(pct);
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          {icon}
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{val.toLocaleString()} {unit}</div>
+          <div className="flex justify-between mt-2 text-xs">
+            <p className="text-muted-foreground">Budget: {budget.toLocaleString()} {unit}</p>
+            <Badge className={stat.bg}>{pct}%</Badge>
+          </div>
+          <Progress value={pct} className="mt-2" />
+          {pct > 100 && (
+            <div className="flex gap-1 mt-2 text-xs text-red-600">
+              <AlertTriangle className="h-3 w-3" /> Melebihi budget!
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <div className="flex flex-1 items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold">Energy Monitoring</h1>
-            <p className="text-sm text-muted-foreground">Monitor konsumsi energi harian dan bulanan</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-green-600 border-green-600">
-              Real-time Monitoring
-            </Badge>
-          </div>
-        </div>
-      </header>
+    <div className="p-6 space-y-6">
+      <div className="grid md:grid-cols-3 gap-4">
+        {CardEnergy("Listrik Hari Ini", <Zap className="h-4 w-4 text-yellow-500" />, electricity, 1500, "kWh")}
+        {CardEnergy("Air Hari Ini", <Droplets className="h-4 w-4 text-blue-500" />, air, 1000, "m³")}
+        {CardEnergy("CNG Hari Ini", <Fuel className="h-4 w-4 text-orange-500" />, cng, 500, "m³")}
+      </div>
 
-      {/* Main Content */}
-      <main className="flex-1 space-y-6 p-6">
-        {/* Today's Consumption Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* Listrik */}
+      <Tabs defaultValue="daily">
+        <TabsList>
+          <TabsTrigger value="daily">Harian</TabsTrigger>
+          <TabsTrigger value="monthly">Trend Bulanan</TabsTrigger>
+          <TabsTrigger value="input">Input Data</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="daily">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Konsumsi Listrik Hari Ini</CardTitle>
-              <Zap className="h-4 w-4 text-yellow-500" />
+            <CardHeader>
+              <CardTitle>Trend Konsumsi Energi (7 Hari)</CardTitle>
+              <CardDescription>Perbandingan konsumsi aktual vs budget harian</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {todayConsumption.listrik.current.toLocaleString()} {todayConsumption.listrik.unit}
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-muted-foreground">
-                  Budget: {todayConsumption.listrik.budget.toLocaleString()} {todayConsumption.listrik.unit}
-                </p>
-                <Badge
-                  className={
-                    getUsageStatus(
-                      getUsagePercentage(todayConsumption.listrik.current, todayConsumption.listrik.budget),
-                    ).bg
-                  }
-                >
-                  {getUsagePercentage(todayConsumption.listrik.current, todayConsumption.listrik.budget)}%
-                </Badge>
-              </div>
-              <Progress
-                value={getUsagePercentage(todayConsumption.listrik.current, todayConsumption.listrik.budget)}
-                className="mt-2"
-              />
-              {getUsagePercentage(todayConsumption.listrik.current, todayConsumption.listrik.budget) > 100 && (
-                <div className="flex items-center gap-1 mt-2 text-red-600 text-xs">
-                  <AlertTriangle className="h-3 w-3" />
-                  <span>Melebihi budget harian!</span>
-                </div>
-              )}
+              <ResponsiveContainer width="100%" height={400}>
+                <AreaChart data={filtered}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickFormatter={(v) => new Date(v).toLocaleDateString("id-ID", { day: "numeric", month: "short" })} />
+                  <YAxis />
+                  <Tooltip labelFormatter={(v) => new Date(v).toLocaleDateString("id-ID")} />
+                  <Area type="monotone" dataKey="listrik" stroke="#f59e0b" fill="#fef3c7" />
+                  <Area type="monotone" dataKey="air" stroke="#3b82f6" fill="#dbeafe" />
+                  <Area type="monotone" dataKey="cng" stroke="#f97316" fill="#fed7aa" />
+                  <Line type="monotone" dataKey="budget_listrik" stroke="#ef4444" strokeDasharray="5 5" />
+                  <Line type="monotone" dataKey="budget_air" stroke="#ef4444" strokeDasharray="5 5" />
+                  <Line type="monotone" dataKey="budget_cng" stroke="#ef4444" strokeDasharray="5 5" />
+                </AreaChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
-
-          {/* Air */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Konsumsi Air Hari Ini</CardTitle>
-              <Droplets className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {todayConsumption.air.current.toLocaleString()} {todayConsumption.air.unit}
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-muted-foreground">
-                  Budget: {todayConsumption.air.budget.toLocaleString()} {todayConsumption.air.unit}
-                </p>
-                <Badge
-                  className={
-                    getUsageStatus(getUsagePercentage(todayConsumption.air.current, todayConsumption.air.budget)).bg
-                  }
-                >
-                  {getUsagePercentage(todayConsumption.air.current, todayConsumption.air.budget)}%
-                </Badge>
-              </div>
-              <Progress
-                value={getUsagePercentage(todayConsumption.air.current, todayConsumption.air.budget)}
-                className="mt-2"
-              />
-            </CardContent>
-          </Card>
-
-          {/* CNG */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Konsumsi CNG Hari Ini</CardTitle>
-              <Fuel className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {todayConsumption.cng.current.toLocaleString()} {todayConsumption.cng.unit}
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-muted-foreground">
-                  Budget: {todayConsumption.cng.budget.toLocaleString()} {todayConsumption.cng.unit}
-                </p>
-                <Badge
-                  className={
-                    getUsageStatus(getUsagePercentage(todayConsumption.cng.current, todayConsumption.cng.budget)).bg
-                  }
-                >
-                  {getUsagePercentage(todayConsumption.cng.current, todayConsumption.cng.budget)}%
-                </Badge>
-              </div>
-              <Progress
-                value={getUsagePercentage(todayConsumption.cng.current, todayConsumption.cng.budget)}
-                className="mt-2"
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <Tabs defaultValue="daily" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="daily">Monitoring Harian</TabsTrigger>
-            <TabsTrigger value="monthly">Trend Bulanan</TabsTrigger>
-            <TabsTrigger value="input">Input Data</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="daily" className="space-y-4">
-            {/* Daily Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Konsumsi Energi 7 Hari Terakhir</CardTitle>
-                <CardDescription>Perbandingan konsumsi aktual vs budget harian</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <AreaChart data={energyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={(value) =>
-                        new Date(value).toLocaleDateString("id-ID", { month: "short", day: "numeric" })
-                      }
-                    />
-                    <YAxis />
-                    <Tooltip
-                      labelFormatter={(value) => new Date(value).toLocaleDateString("id-ID")}
-                      formatter={(value, name) => [
-                        value,
-                        name === "listrik" ? "Listrik (kWh)" : name === "air" ? "Air (m³)" : "CNG (m³)",
-                      ]}
-                    />
-                    <Area type="monotone" dataKey="listrik" stackId="1" stroke="#f59e0b" fill="#fef3c7" />
-                    <Area type="monotone" dataKey="air" stackId="1" stroke="#3b82f6" fill="#dbeafe" />
-                    <Area type="monotone" dataKey="cng" stackId="1" stroke="#f97316" fill="#fed7aa" />
-                    <Line type="monotone" dataKey="budget_listrik" stroke="#ef4444" strokeDasharray="5 5" />
-                    <Line type="monotone" dataKey="budget_air" stroke="#ef4444" strokeDasharray="5 5" />
-                    <Line type="monotone" dataKey="budget_cng" stroke="#ef4444" strokeDasharray="5 5" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Daily Details */}
-            <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -328,26 +331,26 @@ export default function EnergyPage() {
           </TabsContent>
 
           <TabsContent value="monthly" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Trend Konsumsi Bulanan</CardTitle>
-                <CardDescription>Perbandingan konsumsi energi 6 bulan terakhir</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="listrik" fill="#f59e0b" name="Listrik (kWh)" />
-                    <Bar dataKey="air" fill="#3b82f6" name="Air (m³)" />
-                    <Bar dataKey="cng" fill="#f97316" name="CNG (m³)" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
+  <Card>
+    <CardHeader>
+      <CardTitle>Trend Konsumsi Bulanan</CardTitle>
+      <CardDescription>Perbandingan konsumsi energi 6 bulan terakhir</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={filtered6Months}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="month_name" /> {/* Ensure month_name exists in filtered6Months */}
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="listrik" fill="#f59e0b" name="Listrik (kWh)" />
+          <Bar dataKey="air" fill="#3b82f6" name="Air (m³)" />
+          <Bar dataKey="cng" fill="#f97316" name="CNG (m³)" />
+        </BarChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+</TabsContent>
 
           <TabsContent value="input" className="space-y-4">
             <div className="grid gap-6 md:grid-cols-3">
@@ -496,8 +499,7 @@ export default function EnergyPage() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-      </main>
-    </div>
-  )
+                </Tabs>
+    </div>
+  );
 }

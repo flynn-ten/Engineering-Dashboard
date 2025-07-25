@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import supabase from "@/lib/supabase";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 const workingRequests = [
   {
     id: "REQ-2024-006",
@@ -69,11 +70,11 @@ const workingRequests = [
   },
 ]
   const handleApprove = (requestId: string) => {
-    alert('Request ${requestId} approved! Work Order will be created.')
+    alert(`Request ${requestId} approved! Work Order will be created.`);
   }
 
   const handleCancel = (requestId: string) => {
-    alert('Request ${requestId} has been cancelled.')
+    alert(`Request ${requestId} has been cancelled.`);
   }
 
 const WorkOrdersPage = () => {

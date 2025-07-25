@@ -10,6 +10,8 @@ from .serializers import UserProfileSerializer
 from django.http import JsonResponse
 from django.db import connection
 
+
+
 from .models import UserProfile, active_work_orders
 from .serializers import UserSerializer
 
@@ -248,21 +250,56 @@ def work_request_list(request):
     ]
     return JsonResponse(work_request, safe=False)
 
+def energy (request):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+           SELECT 
+                a.date, 
+                a.daily_consumption*100 AS water_consumption, 
+                b.daily_consumption AS cng_consumption, 
+                c.daily_consumption AS electricity_consumption,
+                EXTRACT(YEAR FROM a.date) AS year,
+                EXTRACT(MONTH FROM a.date) AS month,
+                FLOOR((EXTRACT(DAY FROM a.date) - 1) / 7) + 1 AS week_of_month,
+                EXTRACT(DAY FROM a.date) AS day
+            FROM 
+                water_daily a
+            LEFT JOIN 
+                cng_daily b ON a.date = b.date
+            LEFT JOIN 
+                electricity_daily c ON a.date = c.date
+            ORDER BY a.date DESC;
+        """)
+        rows = cursor.fetchall()
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from .serializers import WorkRequestSerializer
-from .models import WorkRequest
+    water_data = [
+        {"date": row[0], "water_consumption": row[1], "cng_consumption": row[2], "electricity_consumption": row[3], "year": row[4], "month": row[5], "week_of_month": row[6]}
+        for row in rows
+    ]
+    return JsonResponse(water_data, safe=False)
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_work_request(request):
-    data = request.data.copy()
-    data['user'] = request.user.id  # ambil user login
-    serializer = WorkRequestSerializer(data=data)
+def energyTrend(request):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT  
+                TO_CHAR(a.date, 'FMMonth') AS month_name,
+                round(avg(a.daily_consumption*100)) AS water_monthly, 
+                round(avg(b.daily_consumption)) AS cng_monthly, 
+                round(avg(c.daily_consumption)) AS electricity_monthly,
+				EXTRACT(MONTH from a.date) as month_number
+            FROM 
+                water_daily a
+            LEFT JOIN 
+                cng_daily b ON a.date = b.date
+            LEFT JOIN 
+                electricity_daily c ON a.date = c.date
+			group by month_name, month_number
+            ORDER BY month_number 
+        """)
+        rows = cursor.fetchall()
 
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=201)
-    return Response(serializer.errors, status=400)
+    energy_trend_data = [
+        {"month_name": row[0], "water_monthly": row[1], "cng_monthly": row[2], "electricity_monthly": row[3], "month_number": row[4]}
+        for row in rows
+    ]
+    return JsonResponse(energy_trend_data, safe=False)

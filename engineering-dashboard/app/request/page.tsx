@@ -39,7 +39,7 @@ const WorkRequestPage = () => {
   const [workRequests, setWorkRequests] = useState<any[]>([]);
   const [filteredWorkRequests, setFilteredWorkRequests] = useState<any[]>([]);
 
-  const assetsByDepartment = {
+   const assetsByDepartment = {
   EN: [
     { id: "EN-001", name: "Generator Utama", description: "Generator 500KVA" },
     { id: "EN-002", name: "Pompa Air Utama", description: "Pompa Centrifugal 100HP" },
@@ -80,7 +80,7 @@ const WorkRequestPage = () => {
     { id: "RD-003", name: "Testing Equipment", description: "Material Testing Machine" },
     { id: "RD-004", name: "Prototype Tools", description: "CNC Prototype Machine" },
   ],
-  WH: [
+WH: [
     { id: "WH-001", name: "Forklift Electric", description: "Electric Forklift 3T" },
     { id: "WH-002", name: "Crane Overhead", description: "Overhead Crane 5T" },
     { id: "WH-003", name: "Pallet Jack", description: "Manual Pallet Jack 2.5T" },
@@ -88,6 +88,7 @@ const WorkRequestPage = () => {
     { id: "WH-005", name: "Barcode Scanner", description: "Wireless Barcode Scanner" },
   ],
 }
+
   // Fetching data from API
   useEffect(() => {
     fetch("http://localhost:8000/api/work-request/")
@@ -114,16 +115,20 @@ const WorkRequestPage = () => {
         setIsLoading(false);
       });
   }, []);
+
   const [selectedDepartment, setSelectedDepartment] = useState("")
   const [selectedAsset, setSelectedAsset] = useState("")
   const [availableAssets, setAvailableAssets] = useState([])
 
-  // Update available assets when department changes
+    // Update available assets when department changes
   const handleDepartmentChange = (department) => {
     setSelectedDepartment(department)
     setSelectedAsset("") // Reset asset selection
     setAvailableAssets(assetsByDepartment[department] || [])
   }
+
+
+
   // Filter work orders based on week selection
   useEffect(() => {
     // First filter by week_of_month if it's not null
@@ -403,7 +408,6 @@ const WorkRequestPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="assetNumber">Nomor Asset *</Label>
                     <Select value={selectedAsset} onValueChange={setSelectedAsset} disabled={!selectedDepartment}>
@@ -427,7 +431,6 @@ const WorkRequestPage = () => {
                     )}
                   </div>
                 </div>
-
                 <div className="flex justify-end gap-4">
                   <Button variant="outline">Reset Form</Button>
                   <Button>Submit Request</Button>
