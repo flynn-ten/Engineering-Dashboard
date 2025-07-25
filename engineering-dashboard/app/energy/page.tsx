@@ -498,6 +498,6 @@ export default function EnergyPage() {
           </TabsContent>
         </Tabs>
       </main>
-    </div>
-  )
+    </div>
+  )
 }
