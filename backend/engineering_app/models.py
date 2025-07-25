@@ -61,20 +61,62 @@ class WorkOrderList(models.Model):
     def __str__(self):
         return self.wo_description
 
-from django.contrib.auth.models import User
-
 class WorkRequest(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)  
-    wr_number = models.IntegerField()
-    title = models.CharField(max_length=100)
-    wo_description = models.CharField(max_length=255)
-    resource = models.CharField(max_length=100)
-    wr_type = models.CharField(max_length=50)
-    wr_request_by_date = models.DateTimeField()
-    wr_requestor = models.CharField(max_length=100)
+    wr_number = models.BigIntegerField(unique=True)
+    title = models.CharField(max_length=255)
+    wo_description = models.TextField()
+    wr_type = models.CharField(max_length=100, default="Perbaikan")
+    resource = models.CharField(max_length=50)
+    
+    asset_number = models.CharField(max_length=50)
+    asset_department = models.CharField(max_length=50)
+
+    wr_requestor = models.ForeignKey(User, on_delete=models.CASCADE)
+    wr_request_by_date = models.DateField()
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
     year = models.IntegerField()
     month = models.IntegerField()
     week_of_month = models.IntegerField()
 
+    status = models.CharField(max_length=50, default="Pending")
+    urgency = models.CharField(max_length=50, default="Normal")
+
     def __str__(self):
-        return self.title
+        return f"{self.wr_number} - {self.title}"
+
+class WORequesterTwo(models.Model):
+    RESOURCE_CHOICES = [
+        ('MTC', 'Maintenance'),
+        ('CAL', 'Calibration'),
+        ('UTY', 'Utility'),
+    ]
+
+    DEPARTMENT_CHOICES = [
+        ('EN', 'Engineering'),
+        ('GA', 'General Affairs'),
+        ('PD', 'Production'),
+        ('QA', 'Quality Assurance'),
+        ('QC', 'Quality Control'),
+        ('RD', 'Research & Development'),
+        ('WH', 'Warehouse'),
+    ]
+
+    
+    wr_number = models.BigIntegerField(unique=True)
+    title = models.CharField(max_length=255)
+    wo_description = models.TextField()
+    wr_type = models.CharField(max_length=50)  # e.g., 'Perbaikan', 'Kalibrasi'
+    wr_requestor = models.ForeignKey(User, on_delete=models.CASCADE)  # Jika pakai auth
+    wr_request_by_date = models.DateField()
+    year = models.IntegerField()
+    month = models.IntegerField()
+    week_of_month = models.IntegerField()
+    resource = models.CharField(max_length=10, choices=RESOURCE_CHOICES)
+    asset_number = models.CharField(max_length=50)
+    asset_department = models.CharField(max_length=10, choices=DEPARTMENT_CHOICES)
+    urgency = models.CharField(max_length=50, default="Normal")
+    status = models.CharField(max_length=50, default="Pending")
+
+    def __str__(self):
+        return f"{self.wr_number} - {self.title}"
