@@ -58,6 +58,7 @@ const WorkOrdersPage = () => {
         console.error("Error fetching data:", error);
         setIsLoading(false);
       });
+      
   }, []);
 
   // Filter work orders based on week selection
@@ -111,6 +112,7 @@ const WorkOrdersPage = () => {
         }
       )
       .subscribe();
+      
 
     return () => {
       supabase.removeChannel(channel);
