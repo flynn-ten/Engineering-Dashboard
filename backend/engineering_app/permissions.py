@@ -17,3 +17,11 @@ class WorkRequestSerializer(serializers.ModelSerializer):
         model = WorkRequest
         fields = '__all__'
         read_only_fields = ['user']
+        
+
+class IsRequester(BasePermission):
+    def has_permission(self, request, view):
+        # izinkan jika requester ATAU admin (biar admin bisa testing/debug)
+        if not hasattr(request.user, 'userprofile'):
+            return False
+        return request.user.userprofile.role in ["requester", "admin"]
