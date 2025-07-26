@@ -27,14 +27,14 @@ import {
 import { act, JSX, use, useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
 
-const monthlyData = [
-  { month: "Jan", listrik: 35000, air: 22000, cng: 12000 },
-  { month: "Feb", listrik: 32000, air: 21000, cng: 11500 },
-  { month: "Mar", listrik: 38000, air: 24000, cng: 13000 },
-  { month: "Apr", listrik: 36000, air: 23000, cng: 12500 },
-  { month: "May", listrik: 40000, air: 25000, cng: 14000 },
-  { month: "Jun", listrik: 42000, air: 26000, cng: 14500 },
-]
+// const monthlyData = [
+//   { month: "Jan", listrik: 35000, air: 22000, cng: 12000 },
+//   { month: "Feb", listrik: 32000, air: 21000, cng: 11500 },
+//   { month: "Mar", listrik: 38000, air: 24000, cng: 13000 },
+//   { month: "Apr", listrik: 36000, air: 23000, cng: 12500 },
+//   { month: "May", listrik: 40000, air: 25000, cng: 14000 },
+//   { month: "Jun", listrik: 42000, air: 26000, cng: 14500 },
+// ]
 
 export default function EnergyPage() {
   const [energyData, setEnergyData] = useState<any[]>([]);
@@ -236,7 +236,7 @@ useEffect(() => {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-sm">Konsumsi Hari Ini</span>
-                    <span className="font-medium">1,600 kWh</span>
+                    <span className="font-medium">{electricity}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Budget Harian</span>
@@ -244,7 +244,7 @@ useEffect(() => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Selisih</span>
-                    <span className="font-medium text-red-600">+100 kWh</span>
+                    <span className="font-medium text-red-600">{electricity - 1500} kWh</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Rata-rata 7 hari</span>

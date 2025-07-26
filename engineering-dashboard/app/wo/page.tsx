@@ -10,72 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import supabase from "@/lib/supabase";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-const workingRequests = [
-  {
-    id: "REQ-2024-006",
-    title: "Perbaikan Sistem Ventilasi Ruang Server",
-    description: "Sistem ventilasi ruang server tidak berfungsi optimal, suhu ruangan meningkat",
-    category: "UTY",
-    requester: "IT Department",
-    requestDate: "2024-01-16",
-    estimatedCost: 5000000,
-    urgency: "Urgent",
-    location: "Server Room - Lantai 3",
-  },
-  {
-    id: "REQ-2024-007",
-    title: "Kalibrasi Ulang Pressure Gauge",
-    description: "Pressure gauge di line produksi menunjukkan pembacaan yang tidak akurat",
-    category: "CAL",
-    requester: "Production Team",
-    requestDate: "2024-01-15",
-    estimatedCost: 1200000,
-    urgency: "Normal",
-    location: "Production Line 2",
-  },
-  {
-    id: "REQ-2024-008",
-    title: "Maintenance Conveyor Belt Motor",
-    description: "Motor conveyor belt mengeluarkan suara tidak normal dan getaran berlebih",
-    category: "MTC",
-    requester: "Production Supervisor",
-    requestDate: "2024-01-14",
-    estimatedCost: 3500000,
-    urgency: "Urgent",
-    location: "Production Area A",
-  },
-  {
-    id: "REQ-2024-009",
-    title: "Penggantian Lampu Emergency Exit",
-    description: "Beberapa lampu emergency exit tidak menyala dan perlu diganti",
-    category: "UTY",
-    requester: "Safety Officer",
-    requestDate: "2024-01-13",
-    estimatedCost: 800000,
-    urgency: "Normal",
-    location: "Seluruh Area Pabrik",
-  },
-  {
-    id: "REQ-2024-010",
-    title: "Inspeksi dan Servis Crane Overhead",
-    description: "Crane overhead perlu inspeksi rutin dan servis sesuai jadwal maintenance",
-    category: "MTC",
-    requester: "Warehouse Manager",
-    requestDate: "2024-01-12",
-    estimatedCost: 4200000,
-    urgency: "Normal",
-    location: "Warehouse - Area Loading",
-  },
-]
-  const handleApprove = (requestId: string) => {
-    alert(`Request ${requestId} approved! Work Order will be created.`);
-  }
-
-  const handleCancel = (requestId: string) => {
-    alert(`Request ${requestId} has been cancelled.`);
-  }
 
 const WorkOrdersPage = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -94,6 +29,117 @@ const WorkOrdersPage = () => {
   const [resource, setResource] = useState("");
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
+  const [workRequests, setWorkRequests] = useState<any[]>([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(true);
+
+  // Remove hardcoded data - we'll fetch from API instead
+  const workingRequests = workRequests.filter(req => req.status === "Pending" || req.status === "In Review");
+
+
+  const handleApprove = async (requestId: string) => {
+    try {
+      // Use the correct token key that matches your other components
+      const token = localStorage.getItem("access") || localStorage.getItem("accessToken");
+      
+      if (!token) {
+        alert("No authentication token found. Please login again.");
+        return;
+      }
+
+      const res = await fetch(`http://localhost:8000/api/work-request/update-status/${requestId}/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: "approved" }),
+      });
+
+      // Check if response is actually JSON
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Server returned non-JSON response:", await res.text());
+        alert(`Server error: Expected JSON response but got ${contentType}`);
+        return;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Request ${requestId} approved! Work Order will be created.`);
+        // Refresh the work requests list
+        fetchWorkRequests();
+      } else {
+        const data = await res.json();
+        alert(`Failed to approve: ${data.error || data.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error("Error approving:", err);
+      alert("Error occurred while approving request. Please check the console for details.");
+    }
+  };
+
+  const handleCancel = async (requestId: string) => {
+    try {
+      // Use the correct token key that matches your other components
+      const token = localStorage.getItem("access") || localStorage.getItem("accessToken");
+      
+      if (!token) {
+        alert("No authentication token found. Please login again.");
+        return;
+      }
+
+      const res = await fetch(`http://localhost:8000/api/work-request/update-status/${requestId}/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: "rejected" }),
+      });
+
+      // Check if response is actually JSON
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Server returned non-JSON response:", await res.text());
+        alert(`Server error: Expected JSON response but got ${contentType}`);
+        return;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Request ${requestId} has been cancelled.`);
+        // Refresh the work requests list
+        fetchWorkRequests();
+      } else {
+        const data = await res.json();
+        alert(`Failed to cancel: ${data.error || data.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error("Error rejecting:", err);
+      alert("Error occurred while cancelling request. Please check the console for details.");
+    }
+  };
+
+  // Fetch work requests from API
+  const fetchWorkRequests = async () => {
+    try {
+      setIsLoadingRequests(true);
+      const response = await fetch("http://localhost:8000/api/work-request/");
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setWorkRequests(data);
+    } catch (error) {
+      console.error("Error fetching work requests:", error);
+      // Keep empty array as fallback
+      setWorkRequests([]);
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  };
 
   // Fetching data from API
   useEffect(() => {
@@ -123,32 +169,34 @@ const WorkOrdersPage = () => {
         console.error("Error fetching data:", error);
         setIsLoading(false);
       });
+    
+    // Also fetch work requests
+    fetchWorkRequests();
   }, []);
 
   // Filter work orders based on week selection
   useEffect(() => {
-  // First filter by week_of_month if it's not null
-  let filteredData = workOrders;
-  if (week_of_month !== null) {
-    filteredData = filteredData.filter((wo) => wo.week_of_month === week_of_month);
-  }
+    // First filter by week_of_month if it's not null
+    let filteredData = workOrders;
+    if (week_of_month !== null) {
+      filteredData = filteredData.filter((wo) => wo.week_of_month === week_of_month);
+    }
 
-  // Then filter by year if it's not null
-  if (year !== null) {
-    filteredData = filteredData.filter((wo) => wo.year === year);
-  }
+    // Then filter by year if it's not null
+    if (year !== null) {
+      filteredData = filteredData.filter((wo) => wo.year === year);
+    }
 
-  if (month !== null) {
-    filteredData = filteredData.filter((wo) => wo.month === month);
-  }
+    if (month !== null) {
+      filteredData = filteredData.filter((wo) => wo.month === month);
+    }
 
-  // Set filtered work orders after both filters are applied
-  setFilteredWorkOrders(filteredData);
+    // Set filtered work orders after both filters are applied
+    setFilteredWorkOrders(filteredData);
+  }, [year, month, week_of_month, workOrders]);
 
-}, [year, month, week_of_month, workOrders]);
-
-
-  // Supabase real-time subscription
+  // Supabase real-time subscription (commented out since supabase import is missing)
+  /*
   useEffect(() => {
     const channel = supabase
       .channel('list_orders_changes')
@@ -181,6 +229,7 @@ const WorkOrdersPage = () => {
       supabase.removeChannel(channel);
     };
   }, []);
+  */
 
   const getStatusColor = (wo_status: string) => {
     switch (wo_status) {
@@ -203,6 +252,12 @@ const WorkOrdersPage = () => {
         return "bg-orange-100 text-orange-800";
       case "UTY":
         return "bg-cyan-100 text-cyan-800";
+      case "personnel":
+        return "bg-blue-100 text-blue-800";
+      case "material":
+        return "bg-green-100 text-green-800";
+      case "tooling":
+        return "bg-yellow-100 text-yellow-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -362,6 +417,7 @@ const WorkOrdersPage = () => {
               </Card>
             ))}
           </TabsContent>
+          
           <TabsContent value="requests" className="space-y-4">
             {/* Filter & Pencarian untuk Requests */}
             <Card>
@@ -404,44 +460,42 @@ const WorkOrdersPage = () => {
 
             {/* Working Requests List */}
             <div className="space-y-4">
-              {workingRequests.length === 0 ? (
+              {isLoadingRequests ? (
+                <div className="text-center py-8">Loading work requests...</div>
+              ) : workingRequests.length === 0 ? (
                 <Alert>
                   <AlertDescription>Tidak ada working request yang menunggu persetujuan saat ini.</AlertDescription>
                 </Alert>
               ) : (
                 <div className="space-y-4">
                   {workingRequests.map((request) => (
-                    <Card key={request.id}>
+                    <Card key={request.wr_number || request.id}>
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between">
                           <div className="space-y-3 flex-1">
                             <div className="flex items-center gap-3">
                               <h3 className="text-lg font-semibold">{request.title}</h3>
-                              <Badge variant="outline">{request.id}</Badge>
-                              <Badge className={getCategoryColor(request.category)}>{request.category}</Badge>
+                              <Badge variant="outline">{request.wr_number || request.id}</Badge>
+                              <Badge className={getCategoryColor(request.resource || request.category)}>
+                                {request.resource || request.category}
+                              </Badge>
                               <Badge variant="outline" className="bg-blue-50 text-blue-700">
                                 {request.urgency}
                               </Badge>
                             </div>
 
-                            <p className="text-sm text-muted-foreground">{request.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {request.wo_description || request.description}
+                            </p>
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                               <div className="flex items-center gap-2">
                                 <User className="h-4 w-4 text-muted-foreground" />
-                                <span>Requester: {request.requester}</span>
+                                <span>Requester: {request.wr_requestor || request.requester}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span>Date: {request.requestDate}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">
-                                  Cost: Rp {request.estimatedCost.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">Location: {request.location}</span>
+                                <span>Date: {request.wr_request_by_date || request.requestDate}</span>
                               </div>
                             </div>
                           </div>
@@ -450,12 +504,16 @@ const WorkOrdersPage = () => {
                             <Button
                               size="sm"
                               className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleApprove(request.id)}
+                              onClick={() => handleApprove(request.wr_number || request.id)}
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
                               Approve
                             </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleCancel(request.id)}>
+                            <Button 
+                              size="sm" 
+                              variant="destructive" 
+                              onClick={() => handleCancel(request.wr_number || request.id)}
+                            >
                               <XCircle className="h-4 w-4 mr-1" />
                               Cancel
                             </Button>

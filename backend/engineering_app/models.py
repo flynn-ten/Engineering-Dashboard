@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
+import uuid
 
 class UserProfile(models.Model):
     ROLE_CHOICES = [
@@ -119,4 +120,73 @@ class WORequesterTwo(models.Model):
     status = models.CharField(max_length=50, default="Pending")
 
     def __str__(self):
-        return f"{self.wr_number} - {self.title}"
+        return self.date
+    
+class analytics(models.Model):
+    wo_number = models.CharField(max_length=100, unique=True)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+
+    scheduled_start = models.DateTimeField(blank=True, null=True)
+    scheduled_completion = models.DateTimeField(blank=True, null=True)
+    actual_failure_date = models.DateTimeField(blank=True, null=True)
+
+    asset_code = models.CharField(max_length=100, blank=True, null=True)
+    asset_group = models.CharField(max_length=100, blank=True, null=True)
+    department = models.CharField(max_length=100, blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)  # optional
+    updated_at = models.DateTimeField(auto_now=True)      # optional
+
+    def __str__(self):
+        return f"{self.wo_number} - {self.title}"
+    
+class WorkRequest(models.Model):
+    URGENCY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+    ]
+    WR_TYPE_CHOICES = [
+        ('repair', 'Repair'),
+        ('inspection', 'Inspection'),
+        ('corrective', 'Corrective'),
+        ('modification', 'Modification'),
+        ('routine', 'Routine Check'),
+    ]
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('in_review', 'In Review'),
+    ]
+
+    wr_number = models.CharField(max_length=100, unique=True, editable=False)
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    asset_number = models.CharField(max_length=100)
+    asset_department = models.CharField(max_length=100)
+    resource = models.CharField(max_length=100)
+    urgency = models.CharField(max_length=10, choices=URGENCY_CHOICES)
+    wr_type = models.CharField(max_length=20, choices=WR_TYPE_CHOICES)
+    
+    failure_code = models.CharField(max_length=100, blank=True, null=True)
+    failure_cause = models.TextField(blank=True, null=True)
+    resolution = models.TextField(blank=True, null=True)
+    actual_failure_date = models.DateField(blank=True, null=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='work_requests')
+    created_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.wr_number:
+            self.wr_number = f"WR-{uuid.uuid4().hex[:6].upper()}"
+        if self.status == 'approved' and not self.approved_at:
+            from django.utils import timezone
+            self.approved_at = timezone.now()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.wr_number

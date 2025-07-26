@@ -1,22 +1,8 @@
 from django.urls import path
-from .views import (
-    # 🔐 Auth & User
-    MeView,
-    RegisterUserView,
-    DivisionListView,
-    UserListView,
-    UserStatsView,
-
-    # 📊 Work Order (Raw SQL)
-    active_work_orders,
-    unreleased_work_orders,
-    work_order_list,
-    work_request_list,
-
-    # 📝 Work Request (Model-based)
-    WORequesterListAPIView,
-    WORequesterCreateAPIView,
-)
+from .views import MeView, RegisterUserView, DivisionListView, WorkRequestStatusUpdateAPIView
+from . import views
+from .views import MeView, RegisterUserView, DivisionListView, UserListView, UserStatsView, WorkRequestCreateAPIView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     # 🔐 Auth & User
@@ -25,14 +11,17 @@ urlpatterns = [
     path('divisions/', DivisionListView.as_view(), name='division-list'),
     path('users/', UserListView.as_view(), name='user-list'),
     path('users/stats/', UserStatsView.as_view(), name='user-stats'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('energy/', views.energy),
+    path('energy_monthly/', views.energyTrend),
+    path('analytics/', views.analytic),
+    path('category-analytics/', views.category_analytics),
+    path('equipment-analytics/', views.equipment_analytics),
+    path('monthly-trend/', views.monthly_trend),
+    path('downtime/', views.weekly_downtime),
+    path('energydaily/', views.energydaily),
+    path('work-request/', WorkRequestCreateAPIView.as_view(), name='work-request'),
+    path('work-request/create/', WorkRequestCreateAPIView.as_view(), name='work-request-create'),
+    path("work-request/update-status/<int:pk>/", WorkRequestStatusUpdateAPIView.as_view(), name="update-work-request-status")
 
-    # 📊 Work Order (Raw SQL)
-    path('active-work-orders/', active_work_orders, name='active-work-orders'),
-    path('unreleased-work-orders/', unreleased_work_orders, name='unreleased-work-orders'),
-    path('work-order-list/', work_order_list, name='work-order-list'),
-    path('work-request/', work_request_list, name='work-request-list-raw'),
-
-    # 📝 Work Request (Model-based)
-    path('work-requests/', WORequesterListAPIView.as_view(), name='work-request-list'),
-    path('work-requests/create/', WORequesterCreateAPIView.as_view(), name='create-work-request'),
 ]
