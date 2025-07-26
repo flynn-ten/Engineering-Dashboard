@@ -9,11 +9,58 @@ from .serializers import UserProfileWithUserSerializer
 from .serializers import UserProfileSerializer
 from django.http import JsonResponse
 from django.db import connection
+import pandas as pd
+from rest_framework.decorators import api_view
 
 
 
-from .models import UserProfile, active_work_orders
+from .models import UserProfile, active_work_orders, analytics
 from .serializers import UserSerializer
+from .serializers import WorkRequestSerializer
+
+class WorkRequestStatusUpdateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            wr = WorkRequest.objects.get(pk=pk)
+        except WorkRequest.DoesNotExist:
+            return Response({"error": "Work Request not found."}, status=404)
+
+        new_status = request.data.get("status")
+        if new_status not in ["approved", "rejected"]:
+            return Response({"error": "Invalid status value"}, status=400)
+
+        wr.status = new_status
+        if new_status == "approved":
+            from django.utils import timezone
+            wr.approved_at = timezone.now()
+
+        wr.save()
+        return Response({"message": f"Status updated to {new_status}"}, status=200)
+
+class WorkRequestCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = WorkRequestSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()  # requested_by sudah diset di serializer
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request):
+        user = request.user
+        role = getattr(user.userprofile, 'role', None)
+
+        if role == 'admin':
+            queryset = WorkRequest.objects.all().order_by('-created_at')
+        else:
+            queryset = WorkRequest.objects.filter(requested_by=user).order_by('-created_at')
+
+        serializer = WorkRequestSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
@@ -22,7 +69,7 @@ class MeView(APIView):
         print("DEBUG:", request.user, request.user.userprofile.role)
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
-    
+
 class RegisterUserView(APIView):
     permission_classes = [IsAdminUserProfile]
 
@@ -39,7 +86,6 @@ class RegisterUserView(APIView):
         role = request.data.get("role")
         division = request.data.get("division", "")
 
-        # ✅ Validasi harus dilakukan sebelum create
         if not username or not password or not role or not full_name:
             return Response({"error": "All fields required"}, status=400)
 
@@ -57,18 +103,12 @@ class RegisterUserView(APIView):
 
         return Response({"message": "User created"}, status=201)
 
-
 class DivisionListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        print("DEBUG: user =", request.user)
         divisions = ["Halal Representative", "HSSE", "IT", "PD", "DP", "DS","QA", "QC", "EN", "QSC", "RD", "WH"]
         return Response(divisions)
-
-
-from rest_framework.views import APIView
-from .serializers import UserProfileWithUserSerializer
 
 class UserListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUserProfile]
@@ -302,3 +342,342 @@ def energyTrend(request):
         for row in rows
     ]
     return JsonResponse(energy_trend_data, safe=False)
+
+def analytic(request):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            WITH 
+            mttr_data AS (
+                SELECT 
+                    DATE(wo_scheduled_start_date) AS date,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (wo_scheduled_completion_date - wo_scheduled_start_date)) / 3600), 2) AS mttr_hours
+                FROM main_data
+                WHERE wo_scheduled_start_date IS NOT NULL 
+                  AND wo_scheduled_completion_date IS NOT NULL
+                GROUP BY DATE(wo_scheduled_start_date)
+            ),
+            
+            failure_dates AS (
+                SELECT 
+                    MIN(actual_failure_date) AS failure_time
+                FROM main_data
+                WHERE actual_failure_date IS NOT NULL
+                GROUP BY DATE(actual_failure_date), no_asset_of_wo
+            ),
+            
+            failure_with_diff AS (
+                SELECT 
+                    failure_time,
+                    failure_time - LAG(failure_time) OVER (ORDER BY failure_time) AS diff
+                FROM failure_dates
+            ),
+            
+            mtbf_data AS (
+                SELECT 
+                    DATE(failure_time) AS date,
+                    ROUND(AVG(EXTRACT(EPOCH FROM diff) / 3600), 2) AS mtbf_hours,
+                    COUNT(*) AS failure_count
+                FROM failure_with_diff
+                WHERE diff IS NOT NULL
+                GROUP BY DATE(failure_time)
+            )
+            
+            SELECT 
+                COALESCE(mttr_data.date, mtbf_data.date) AS date,
+                mttr_data.mttr_hours,
+                mtbf_data.mtbf_hours,
+                mtbf_data.failure_count
+            FROM mttr_data
+            FULL OUTER JOIN mtbf_data ON mttr_data.date = mtbf_data.date
+            ORDER BY date;
+        """)
+        rows = cursor.fetchall()
+
+    result = [
+        {
+            "date": str(row[0]),
+            "mttr_hours": row[1],
+            "mtbf_hours": row[2],
+            "failure_count": row[3]
+        }
+        for row in rows
+    ]
+
+    return JsonResponse(result, safe=False)
+
+def category_analytics(request):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            WITH valid_mttr AS (
+                SELECT
+                    resource,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (wo_actual_completion_date - wo_actual_start_date)) / 3600), 1) AS avg_mttr_hours
+                FROM main_data
+                WHERE wo_actual_start_date IS NOT NULL
+                  AND wo_actual_completion_date IS NOT NULL
+                  AND wo_actual_completion_date >= wo_actual_start_date
+                  AND resource IN ('MTC', 'CAL', 'UTY')
+                GROUP BY resource
+            ),
+
+            valid_mtbf_raw AS (
+                SELECT
+                    resource,
+                    actual_failure_date,
+                    LAG(actual_failure_date) OVER (PARTITION BY resource ORDER BY actual_failure_date) AS prev_failure_date
+                FROM main_data
+                WHERE actual_failure_date IS NOT NULL
+                  AND resource IN ('MTC', 'CAL', 'UTY')
+            ),
+
+            valid_mtbf AS (
+                SELECT
+                    resource,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (actual_failure_date - prev_failure_date)) / 3600), 1) AS avg_mtbf_hours
+                FROM valid_mtbf_raw
+                WHERE prev_failure_date IS NOT NULL
+                GROUP BY resource
+            ),
+
+            work_orders AS (
+                SELECT
+                    resource,
+                    COUNT(*) AS work_order_count
+                FROM main_data
+                WHERE resource IN ('MTC', 'CAL', 'UTY')
+                GROUP BY resource
+            )
+
+            SELECT 
+                wo.resource,
+                wo.work_order_count,
+                COALESCE(mt.avg_mttr_hours, 0),
+                COALESCE(mb.avg_mtbf_hours, 0)
+            FROM work_orders wo
+            LEFT JOIN valid_mttr mt ON wo.resource = mt.resource
+            LEFT JOIN valid_mtbf mb ON wo.resource = mb.resource;
+        """)
+
+        rows = cursor.fetchall()
+
+    result = [
+        {
+            "category": row[0],
+            "count": row[1],
+            "avgMttr": row[2],
+            "avgMtbf": row[3],
+        }
+        for row in rows
+    ]
+
+    return JsonResponse(result, safe=False)
+
+def equipment_analytics(request):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+                        WITH valid_mttr AS (
+            SELECT
+                asset_group,
+                ROUND(AVG(EXTRACT(EPOCH FROM (wo_actual_completion_date - wo_actual_start_date)) / 3600), 1) AS mttr
+            FROM main_data
+            WHERE wo_actual_start_date IS NOT NULL AND wo_actual_completion_date IS NOT NULL
+            GROUP BY asset_group
+            ),
+            valid_mtbf_raw AS (
+            SELECT
+                asset_group,
+                actual_failure_date,
+                LAG(actual_failure_date) OVER (PARTITION BY asset_group ORDER BY actual_failure_date) AS prev_failure
+            FROM main_data
+            WHERE actual_failure_date IS NOT NULL
+            ),
+            valid_mtbf AS (
+            SELECT
+                asset_group,
+                ROUND(AVG(EXTRACT(EPOCH FROM (actual_failure_date - prev_failure)) / 3600), 1) AS mtbf
+            FROM valid_mtbf_raw
+            WHERE prev_failure IS NOT NULL
+            GROUP BY asset_group
+            ),
+            failures AS (
+            SELECT asset_group, COUNT(*) AS failure_count
+            FROM main_data
+            WHERE actual_failure_date IS NOT NULL
+            GROUP BY asset_group
+            )
+
+            SELECT 
+            f.asset_group,
+            COALESCE(m.mttr, 0) AS mttr,
+            COALESCE(b.mtbf, 0) AS mtbf,
+            f.failure_count
+            FROM failures f
+            LEFT JOIN valid_mttr m ON f.asset_group = m.asset_group
+            LEFT JOIN valid_mtbf b ON f.asset_group = b.asset_group
+            WHERE f.asset_group IS NOT NULL
+            ORDER BY f.failure_count DESC
+            LIMIT 10;
+
+        """)
+        rows = cursor.fetchall()
+
+    result = [
+        {
+            "equipment": row[0],       # asset_group
+            "mttr": row[1],            # avg_mttr
+            "mtbf": row[2],            # avg_mtbf
+            "failures": row[3],        # count
+        }
+        for row in rows
+    ]
+
+    return JsonResponse(result, safe=False)
+
+def monthly_trend(request):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+        WITH monthly_mttr AS (
+        SELECT 
+            TO_CHAR(wo_actual_start_date, 'YYYY-MM') AS month,
+            ROUND(AVG(EXTRACT(EPOCH FROM (wo_actual_completion_date - wo_actual_start_date)) / 3600), 1) AS avg_mttr,
+            COUNT(*) AS work_orders
+        FROM main_data
+        WHERE wo_actual_start_date IS NOT NULL AND wo_actual_completion_date IS NOT NULL
+        GROUP BY TO_CHAR(wo_actual_start_date, 'YYYY-MM')
+        ),
+
+        mtbf_raw AS (
+        SELECT 
+            actual_failure_date,
+            TO_CHAR(actual_failure_date, 'YYYY-MM') AS month,
+            LAG(actual_failure_date) OVER (ORDER BY actual_failure_date) AS prev_date
+        FROM main_data
+        WHERE actual_failure_date IS NOT NULL
+        ),
+
+        monthly_mtbf AS (
+        SELECT 
+            month,
+            ROUND(AVG(EXTRACT(EPOCH FROM (actual_failure_date - prev_date)) / 3600), 1) AS avg_mtbf
+        FROM mtbf_raw
+        WHERE prev_date IS NOT NULL
+        GROUP BY month
+        )
+
+        SELECT 
+        mttr.month,
+        mttr.avg_mttr,
+        mtbf.avg_mtbf,
+        mttr.work_orders
+        FROM monthly_mttr mttr
+        LEFT JOIN monthly_mtbf mtbf ON mttr.month = mtbf.month
+        ORDER BY mttr.month;
+
+        """)
+        rows = cursor.fetchall()
+
+    result = [
+        {
+            "month": row[0],  # Format 'YYYY-MM'
+            "mttr": row[1],
+            "mtbf": row[2],
+            "workOrders": row[3],
+        }
+        for row in rows
+    ]
+    return JsonResponse(result, safe=False)
+
+def weekly_downtime(request):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT
+              DATE_TRUNC('week', wo_actual_start_date) AS week,
+
+              ROUND(SUM(CASE 
+                WHEN wo_type IN (
+                  'Preventive Maintenance', 
+                  'Predictive Maintenance', 
+                  'Planned Maintenance', 
+                  'Calibration'
+                ) THEN actual_duration / 3600.0
+                ELSE 0
+              END)::numeric, 2) AS planned_hours,
+
+              ROUND(SUM(CASE 
+                WHEN wo_type IS NULL 
+                     OR wo_type NOT IN (
+                       'Preventive Maintenance', 
+                       'Predictive Maintenance', 
+                       'Planned Maintenance', 
+                       'Calibration'
+                     ) THEN actual_duration / 3600.0
+                ELSE 0
+              END)::numeric, 2) AS unplanned_hours,
+
+              ROUND(SUM(actual_duration / 3600.0)::numeric, 2) AS total_hours
+
+            FROM main_data
+            WHERE 
+              wo_actual_start_date IS NOT NULL
+              AND actual_duration IS NOT NULL
+              AND actual_duration BETWEEN 1 AND 10000000
+
+            GROUP BY DATE_TRUNC('week', wo_actual_start_date)
+            ORDER BY week;
+        """)
+        rows = cursor.fetchall()
+
+    result = [
+        {
+            "week": row[0].strftime("%Y-%m-%d"),
+            "planned": float(row[1]),
+            "unplanned": float(row[2]),
+            "total": float(row[3]),
+        }
+        for row in rows
+    ]
+
+    return JsonResponse(result, safe=False)
+
+def energydaily(request):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+             SELECT *
+FROM (
+    SELECT 
+        a.date,
+        CASE 
+            WHEN TO_CHAR(a.date, 'DY') IN ('Mon', 'MON') THEN 'Sen'
+            WHEN TO_CHAR(a.date, 'DY') IN ('Tue', 'TUE') THEN 'Sel'
+            WHEN TO_CHAR(a.date, 'DY') IN ('Wed', 'WED') THEN 'Rab'
+            WHEN TO_CHAR(a.date, 'DY') IN ('Thu', 'THU') THEN 'Kam'
+            WHEN TO_CHAR(a.date, 'DY') IN ('Fri', 'FRI') THEN 'Jum'
+            WHEN TO_CHAR(a.date, 'DY') IN ('Sat', 'SAT') THEN 'Sab'
+            WHEN TO_CHAR(a.date, 'DY') IN ('Sun', 'SUN') THEN 'Min'
+            ELSE TO_CHAR(a.date, 'DY')
+        END AS name,
+        c.daily_consumption AS listrik,
+        a.daily_consumption * 100 AS air,
+        b.daily_consumption AS cng
+    FROM 
+        water_daily a
+    LEFT JOIN 
+        cng_daily b ON a.date = b.date
+    LEFT JOIN 
+        electricity_daily c ON a.date = c.date
+    ORDER BY a.date DESC
+    LIMIT 7
+) AS recent_data
+ORDER BY date ASC;
+
+        """)
+        rows = cursor.fetchall()
+
+    result = [
+            {"name": row[1], "listrik": float(row[2]), "air": float(row[3]), "cng": float(row[4])}
+            for row in rows
+    ]
+
+    return JsonResponse(result, safe=False)
+
+  
