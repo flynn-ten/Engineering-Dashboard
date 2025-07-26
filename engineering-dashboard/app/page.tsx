@@ -32,7 +32,37 @@ const WorkOrdersPage = () => {
 
   // Fetching data from API
   useEffect(() => {
+<<<<<<< HEAD
     fetch("http://localhost:8000/api/work-order-list/")
+=======
+    // Check for authentication and redirect if needed
+    const access = localStorage.getItem("accessToken");
+    const userJson = localStorage.getItem("user");
+
+    if (!access || !userJson || userJson === "undefined") {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const user = JSON.parse(userJson);
+      const userRole = user.userprofile?.role || user.role;
+
+      if (!userRole) {
+        router.push("/login");
+        return;
+      }
+
+      setCurrentUser(user);
+      setRole(userRole);
+      setIsLoading(false);
+    } catch {
+      router.push("/login");
+    }
+
+    // Fetch Active Work Orders from Django API
+    fetch("http://localhost:8000/api/active-work-orders/")
+>>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
       .then((response) => response.json())
       .then((data) => {
         setWorkOrders(data);

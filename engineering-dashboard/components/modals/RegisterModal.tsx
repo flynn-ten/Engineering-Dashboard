@@ -100,7 +100,7 @@ export function RegisterModal({ open, onClose }: RegisterModalProps) {
         setError(data.error || data.detail || "Gagal mendaftarkan user")
       }
     } catch (err) {
-      console.error("❌ Error saat submit:", err)
+      console.error("Error saat submit:", err)
       setError("Terjadi kesalahan saat mengirim data")
     }
   }
@@ -173,8 +173,8 @@ export function RegisterModal({ open, onClose }: RegisterModalProps) {
 
           <Button
             type="submit"
-            className="w-full bg-green-600 text-white hover:bg-green-700"
-          >
+            className="w-full bg-black text-white hover:bg-gray-800">
+
             Daftarkan User
           </Button>
         </form>

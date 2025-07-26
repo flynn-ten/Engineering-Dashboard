@@ -66,10 +66,16 @@ export function AppSidebar() {
   const hasMounted = useHasMounted();
   const [currentUser, setCurrentUser] = useState<any>(null);
 
+<<<<<<< HEAD
   // Function untuk update user saat login/logout
   const updateUserFromLocalStorage = () => {
     const access = localStorage.getItem("access");
     const userJson = localStorage.getItem("user");
+=======
+  useEffect(() => {
+    const access = localStorage.getItem("accessToken")
+    const userJson = localStorage.getItem("user")
+>>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
 
     if (access && userJson && userJson !== "undefined") {
       try {
@@ -87,6 +93,7 @@ export function AppSidebar() {
     }
   };
 
+<<<<<<< HEAD
   // Gunakan useEffect untuk memantau perubahan localStorage
   useEffect(() => {
     updateUserFromLocalStorage(); // Update user saat pertama kali render
@@ -108,6 +115,15 @@ export function AppSidebar() {
   if (isAuthPage || !accessToken) return null;
 
   // Loading saat currentUser belum siap
+=======
+  if (!hasMounted) return null
+
+  const isAuthPage = pathname === "/login"
+  const accessToken = localStorage.getItem("accessToken")
+
+  if (isAuthPage || !accessToken) return null
+
+>>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
   if (!currentUser) {
     return (
       <div className="p-4 text-sm text-muted-foreground">

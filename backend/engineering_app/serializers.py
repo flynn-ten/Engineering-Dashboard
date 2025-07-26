@@ -1,12 +1,27 @@
-from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import UserProfile
+from .models import WorkRequest, WORequesterTwo, UserProfile
+from django.contrib.auth.models import User
 
+# Untuk WorkRequest (sudah ada)
+class WorkRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkRequest
+        fields = '__all__'
+        read_only_fields = ['wr_requestor']
+
+# Tambahkan ini! 🚨
+class WORequesterTwoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WORequesterTwo
+        fields = '__all__'
+        read_only_fields = ['wr_requestor']
+
+# Sudah ada sebelumnya
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['role', 'division'] 
-        
+        fields = ['role', 'division']
+
 class UserSerializer(serializers.ModelSerializer):
     userprofile = UserProfileSerializer(read_only=True)
     password = serializers.CharField(write_only=True)
@@ -25,7 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileWithUserSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
     date_joined = serializers.DateTimeField(source='user.date_joined')
-    
+
     class Meta:
         model = UserProfile
         fields = ['id', 'full_name', 'email', 'role', 'division', 'status', 'avatar', 'date_joined']
