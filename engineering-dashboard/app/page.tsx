@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { act, use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -14,30 +14,27 @@ import {
 import { RoleIndicator } from "@/components/role-indicator";
 
 // ✅ Dummy data tetap aman
-const energyData = [
-  { name: "Sen", listrik: 1200, air: 800, cng: 400 },
-  { name: "Sel", listrik: 1100, air: 750, cng: 380 },
-  { name: "Rab", listrik: 1300, air: 820, cng: 420 },
-  { name: "Kam", listrik: 1250, air: 790, cng: 410 },
-  { name: "Jum", listrik: 1400, air: 850, cng: 450 },
-  { name: "Sab", listrik: 900, air: 600, cng: 300 },
-  { name: "Min", listrik: 800, air: 550, cng: 280 },
-];
+// const energyData = [
+//   { name: "Sen", listrik: 1200, air: 800, cng: 400 },
+//   { name: "Sel", listrik: 1100, air: 750, cng: 380 },
+//   { name: "Rab", listrik: 1300, air: 820, cng: 420 },
+//   { name: "Kam", listrik: 1250, air: 790, cng: 410 },
+//   { name: "Jum", listrik: 1400, air: 850, cng: 450 },
+//   { name: "Sab", listrik: 900, air: 600, cng: 300 },
+//   { name: "Min", listrik: 800, air: 550, cng: 280 },
+// ];
 
-const woStatusData = [
-  { name: "Open", value: 12, color: "#ef4444" },
-  { name: "In Progress", value: 8, color: "#f59e0b" },
-  { name: "Completed", value: 25, color: "#10b981" },
-];
 
-const mttrData = [
-  { month: "Jan", mttr: 4.2, mtbf: 120 },
-  { month: "Feb", mttr: 3.8, mtbf: 135 },
-  { month: "Mar", mttr: 4.5, mtbf: 110 },
-  { month: "Apr", mttr: 3.2, mtbf: 145 },
-  { month: "Mei", mttr: 3.9, mtbf: 125 },
-  { month: "Jun", mttr: 3.1, mtbf: 150 },
-];
+// const mttrData = [
+//   { month: "Jan", mttr: 4.2, mtbf: 120 },
+//   { month: "Feb", mttr: 3.8, mtbf: 135 },
+//   { month: "Mar", mttr: 4.5, mtbf: 110 },
+//   { month: "Apr", mttr: 3.2, mtbf: 145 },
+//   { month: "Mei", mttr: 3.9, mtbf: 125 },
+//   { month: "Jun", mttr: 3.1, mtbf: 150 },
+// ];
+
+
 
 export default function Dashboard() {
   const router = useRouter();
@@ -48,6 +45,44 @@ export default function Dashboard() {
   const [lastWeekChange, setLastWeekChange] = useState(0);
   const [unreleasedWorkOrders, setUnreleasedWorkOrders] = useState(0);
   const [unreleasedLastWeekChange, setUnreleasedLastWeekChange] = useState(0);
+  const [wo_no, setWo_no] = useState(null);
+  const [title, setTitle] = useState("");
+  const [wo_created_date, setWo_created_date] = useState("");
+  const [wo_status, setWo_status] = useState("");
+  const [wo_description, setWo_description] = useState("");
+  const [wo_type, setWo_type] = useState("");
+  const [wr_requestor, setWr_requestor] = useState("");
+  const [wo_actual_completion_date, setWo_actual_completion_date] = useState("");
+  const [actual_duration, setActual_duration] = useState(null);
+  const [year, setYear] = useState(null);
+  const [month, setMonth] = useState(null);
+  const [week_of_month, setWeek_of_month] = useState<number | null>(null);
+  const [resource, setResource] = useState("");
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
+  const [mttrData, setMttrData] = useState([]);
+  const [energyData, setEnergyByDayData] = useState([]);
+
+  const monthMap = {
+  "01": "Jan",
+  "02": "Feb",
+  "03": "Mar",
+  "04": "Apr",
+  "05": "Mei", // pakai "May" kalau mau English
+  "06": "Jun",
+  "07": "Jul",
+  "08": "Aug",
+  "09": "Sep",
+  "10": "Oct",
+  "11": "Nov",
+  "12": "Dec",
+};
+  
+  const woStatusData = [
+  { name: "Released", value: activeWorkOrders, color: "#ef4444" },
+  { name: "Unreleased", value: unreleasedWorkOrders, color: "#f59e0b" },
+];
+  
   
 
   useEffect(() => {
@@ -76,6 +111,33 @@ export default function Dashboard() {
       router.push("/login");
     }
 
+    fetch("http://localhost:8000/api/monthly-trend/")
+  .then((res) => res.json())
+  .then((data) => {
+    if (!Array.isArray(data)) {
+      console.error("Unexpected response:", data);
+      return;
+    }
+
+    const transformed = data.map((item) => {
+      const monthCode = item.month?.split("-")[1]; // Pastikan item.month ada
+      return {
+        month: monthMap[monthCode] || item.month,
+        mttr: item.mttr,
+        mtbf: item.mtbf,
+      };
+    });
+
+    setMttrData(transformed);
+  })
+  .catch((err) => console.error("Monthly trend fetch error:", err));
+
+
+  fetch("http://localhost:8000/api/energydaily/")
+    .then((res) => res.json())
+    .then((data) => setEnergyByDayData(data))
+    .catch((err) => console.error("Energy by day fetch error:", err));
+
     // Fetch Active Work Orders from Django API
     fetch("http://localhost:8000/api/active-work-orders/")
       .then((response) => response.json())
@@ -91,6 +153,7 @@ export default function Dashboard() {
         console.error("Error fetching data:", error);
         setIsLoading(false);
       });
+      
   }, []);
 
   //fetch unreleased work orders
@@ -110,6 +173,58 @@ export default function Dashboard() {
         setIsLoading(false);
       });
   }, []);
+
+    // Fetch Work Orders data
+    useEffect(() => {
+        fetch("http://localhost:8000/api/work-order-list/")
+          .then((response) => response.json())
+          .then((data) => {
+            setWorkOrders(data);
+            setIsLoading(false);
+            if (data.length > 0) {
+              const latestData = data[0];
+              setWo_no(latestData.no);
+              setTitle(latestData.title);
+              setWo_created_date(latestData.wo_created_date);
+              setWo_status(latestData.wo_status);
+              setResource(latestData.resource);
+              setWo_description(latestData.wo_description);
+              setWo_type(latestData.wo_type);
+              setWr_requestor(latestData.wr_requestor);
+              setWo_actual_completion_date(latestData.wo_actual_completion_date);
+              setActual_duration(latestData.actual_duration);
+              setYear(latestData.year);
+              setMonth(latestData.month);
+              setWeek_of_month(latestData.week_of_month);
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching data:", error);
+            setIsLoading(false);
+          });
+      }, []);
+    
+      // Filter work orders based on week selection
+      useEffect(() => {
+      // First filter by week_of_month if it's not null
+      let filteredData = workOrders;
+      if (week_of_month !== null) {
+        filteredData = filteredData.filter((wo) => wo.week_of_month === week_of_month);
+      }
+    
+      // Then filter by year if it's not null
+      if (year !== null) {
+        filteredData = filteredData.filter((wo) => wo.year === year);
+      }
+    
+      if (month !== null) {
+        filteredData = filteredData.filter((wo) => wo.month === month);
+      }
+    
+      // Set filtered work orders after both filters are applied
+      setFilteredWorkOrders(filteredData);
+
+    }, [year, month, week_of_month, workOrders]);
 
   useEffect(() => {
     const channel = supabase
@@ -137,6 +252,7 @@ export default function Dashboard() {
         }
       )
       .subscribe();
+      
 
     return () => {
       supabase.removeChannel(channel);
@@ -318,37 +434,31 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Work Orders Terbaru</CardTitle>
-              <CardDescription>5 WO terakhir yang dibuat</CardDescription>
+              <CardDescription>{filteredWorkOrders.length} WO terakhir yang dibuat</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { id: "WO-2024-001", title: "Perbaikan Pompa Air", status: "In Progress", priority: "High" },
-                { id: "WO-2024-002", title: "Maintenance AC Unit 3", status: "Open", priority: "Medium" },
-                { id: "WO-2024-003", title: "Kalibrasi Sensor Suhu", status: "Completed", priority: "Low" },
-                { id: "WO-2024-004", title: "Penggantian Filter", status: "Open", priority: "Medium" },
-                { id: "WO-2024-005", title: "Inspeksi Kelistrikan", status: "In Progress", priority: "High" },
-              ].map((wo) => (
-                <div key={wo.id} className="flex items-center justify-between p-3 border rounded-lg">
+           <CardContent className="space-y-4">
+            {filteredWorkOrders.length === 0 ? (
+              <div>No work orders found for the selected filters.</div>
+            ) : (
+              filteredWorkOrders.map((wo) => (
+                <div key={wo.no} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="space-y-1">
                     <p className="text-sm font-medium">{wo.title}</p>
-                    <p className="text-xs text-muted-foreground">{wo.id}</p>
+                    <p className="text-xs text-muted-foreground">{wo.no}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={
-                      wo.priority === "High" ? "destructive" : wo.priority === "Medium" ? "default" : "secondary"
-                    }>
-                      {wo.priority}
-                    </Badge>
                     <Badge
-                      variant={wo.status === "Completed" ? "default" : "outline"}
-                      className={wo.status === "Completed" ? "bg-green-100 text-green-800" : ""}
+                      variant={wo.wo_status === "Completed" ? "default" : "outline"}
+                      className={wo.wo_status === "Completed" ? "bg-green-100 text-green-800" : ""}
                     >
-                      {wo.status}
+                      {wo.wo_status}
                     </Badge>
                   </div>
                 </div>
-              ))}
-            </CardContent>
+              ))
+            )}
+          </CardContent>
+
           </Card>
 
           {/* Notifications */}

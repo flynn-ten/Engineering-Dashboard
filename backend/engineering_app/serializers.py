@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from .models import WorkRequest, UserProfile
-from django.contrib.auth.models import User
+from .models import UserProfile
+from .models import WorkRequest
 
 # Untuk WorkRequest (sudah ada)
 class WorkRequestSerializer(serializers.ModelSerializer):
@@ -38,21 +38,21 @@ class UserProfileWithUserSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ['id', 'full_name', 'email', 'role', 'division', 'status', 'avatar', 'date_joined']
 
+<<<<<<< HEAD
 from rest_framework import serializers
 from .models import WorkRequest
 
 class WorkRequestSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = WorkRequest
-        fields = '__all__'
-        read_only_fields = ['wr_number', 'created_at', 'approved_at', 'requested_by']
+    def create(self, validated_data):
+        request = self.context.get('request')  # Lebih aman daripada langsung self.context['request']
+        validated_data['wr_number'] = f"WR-{uuid4().hex[:6].upper()}"
+        validated_data['status'] = "pending"
+        
+        if request and hasattr(request, 'user'):
+            validated_data['requested_by'] = request.user
+        else:
+            raise serializers.ValidationError("User is not authenticated.")
 
-from rest_framework import serializers
-from .models import EnergyInput
-
-class EnergyInputSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = EnergyInput
-        fields = '__all__'
-        read_only_fields = ['id', 'user', 'created_at']
-
+        return super().create(validated_data)
+from uuid import uuid4
+>>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7

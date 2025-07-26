@@ -38,10 +38,18 @@ export default function LoginPage() {
         return
       }
 
+<<<<<<< HEAD
       localStorage.setItem("accessToken", data.access)
       localStorage.setItem("refresh", data.refresh)
 
       console.log("🔐 Access Token:", data.access)
+=======
+      // Simpan access & refresh token
+      localStorage.setItem('access', data.access);
+      localStorage.setItem('refresh', data.refresh);
+      
+      console.log('🔐 Access Token:', data.access);
+>>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
 
       // Step 2: Get user info
       const userInfo = await fetch("http://localhost:8000/api/me/", {
@@ -64,7 +72,15 @@ export default function LoginPage() {
       console.log("User Data:", user)
       localStorage.setItem("user", JSON.stringify(user))
 
+<<<<<<< HEAD
       const role = user.userprofile?.role
+=======
+      // Simpan user ke localStorage
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Ensure role is in lowercase for case-insensitive comparison
+      const role = user.userprofile?.role?.toLowerCase();
+>>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
 
       if (!role) {
         setError("Login berhasil, tapi role tidak ditemukan")
@@ -72,6 +88,7 @@ export default function LoginPage() {
         return
       }
 
+<<<<<<< HEAD
       // Step 3: Redirect berdasarkan role
       if (role === "admin") router.push("/admin")
       else if (role === "engineer") router.push("/wo")
@@ -83,6 +100,29 @@ export default function LoginPage() {
       setError("Terjadi kesalahan saat login")
     } finally {
       setIsLoading(false)
+=======
+      // Step 3: Redirect based on role (case-insensitive)
+      if (role === 'admin') {
+        router.push('/admin');
+        console.log('Redirecting to /admin');
+      } else if (role === 'engineer') {
+        router.push('/wo');
+        console.log('Redirecting to /wo');
+      } else if (role === 'utility') {
+        router.push('/energy');
+        console.log('Redirecting to /energy');
+      } else if (role === 'qac') {
+        router.push('/compliance');
+        console.log('Redirecting to /compliance');
+      } else {
+        router.push('/request');
+        console.log('Redirecting to /request');
+      }
+
+    } catch (err: any) {
+      console.error('Unhandled error:', err);
+      setError('Terjadi kesalahan saat login');
+>>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
     }
   }
 
