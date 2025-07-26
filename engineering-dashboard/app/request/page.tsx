@@ -1,110 +1,171 @@
-"use client";
+'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import {
-  Plus,
-  Search,
-  Calendar,
-  Clock,
-  User,
-  FileText,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  MoreHorizontal,
-} from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import React, { useEffect, useState } from "react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, Calendar, Clock, User, Wrench, AlertCircle, CheckCircle, MoreHorizontal, XCircle } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-const WorkRequestPage = () => {
+const WorkOrdersPage = async () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [wr_number, setWr_number] = useState(null);
+  const [wo_no, setWo_no] = useState(null);
   const [title, setTitle] = useState("");
+  const [wo_created_date, setWo_created_date] = useState("");
+  const [wo_status, setWo_status] = useState("");
   const [wo_description, setWo_description] = useState("");
-  const [wr_type, setWr_type] = useState("");
+  const [wo_type, setWo_type] = useState("");
   const [wr_requestor, setWr_requestor] = useState("");
-  const [wr_request_by_date, setWr_request_by_date] = useState("");
+  const [wo_actual_completion_date, setWo_actual_completion_date] = useState("");
+  const [actual_duration, setActual_duration] = useState(null);
   const [year, setYear] = useState(null);
   const [month, setMonth] = useState(null);
   const [week_of_month, setWeek_of_month] = useState<number | null>(null);
   const [resource, setResource] = useState("");
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
   const [workRequests, setWorkRequests] = useState<any[]>([]);
-  const [filteredWorkRequests, setFilteredWorkRequests] = useState<any[]>([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(true);
 
-   const assetsByDepartment = {
-  EN: [
-    { id: "EN-001", name: "Generator Utama", description: "Generator 500KVA" },
-    { id: "EN-002", name: "Pompa Air Utama", description: "Pompa Centrifugal 100HP" },
-    { id: "EN-003", name: "Kompresor Udara", description: "Kompresor Screw 75HP" },
-    { id: "EN-004", name: "Panel Listrik Utama", description: "Panel MDP 2000A" },
-    { id: "EN-005", name: "Cooling Tower", description: "Cooling Tower 200RT" },
-  ],
-  GA: [
-    { id: "GA-001", name: "AC Central Lobby", description: "AC VRV 20PK" },
-    { id: "GA-002", name: "Lift Penumpang", description: "Lift 8 Orang" },
-    { id: "GA-003", name: "CCTV System", description: "CCTV 32 Channel" },
-    { id: "GA-004", name: "Fire Alarm Panel", description: "Fire Alarm Addressable" },
-    { id: "GA-005", name: "Access Control", description: "Card Reader System" },
-  ],
-  PD: [
-    { id: "PD-001", name: "Mesin Produksi Line 1", description: "Injection Molding 250T" },
-    { id: "PD-002", name: "Conveyor Belt A", description: "Belt Conveyor 50m" },
-    { id: "PD-003", name: "Robot Welding", description: "Welding Robot 6-Axis" },
-    { id: "PD-004", name: "Oven Curing", description: "Industrial Oven 200°C" },
-    { id: "PD-005", name: "Packaging Machine", description: "Auto Packaging Line" },
-  ],
-  QA: [
-    { id: "QA-001", name: "CMM Machine", description: "Coordinate Measuring Machine" },
-    { id: "QA-002", name: "Hardness Tester", description: "Rockwell Hardness Tester" },
-    { id: "QA-003", name: "Surface Roughness", description: "Surface Roughness Tester" },
-    { id: "QA-004", name: "Optical Comparator", description: "Profile Projector 300mm" },
-  ],
-  QC: [
-    { id: "QC-001", name: "Timbangan Digital", description: "Digital Scale 0.1mg" },
-    { id: "QC-002", name: "pH Meter", description: "Digital pH Meter" },
-    { id: "QC-003", name: "Spektrofotometer", description: "UV-Vis Spectrophotometer" },
-    { id: "QC-004", name: "Mikroskop", description: "Digital Microscope 1000x" },
-    { id: "QC-005", name: "Oven Lab", description: "Laboratory Oven 300°C" },
-  ],
-  RD: [
-    { id: "RD-001", name: "3D Printer", description: "Industrial 3D Printer" },
-    { id: "RD-002", name: "CAD Workstation", description: "High-End CAD Computer" },
-    { id: "RD-003", name: "Testing Equipment", description: "Material Testing Machine" },
-    { id: "RD-004", name: "Prototype Tools", description: "CNC Prototype Machine" },
-  ],
-WH: [
-    { id: "WH-001", name: "Forklift Electric", description: "Electric Forklift 3T" },
-    { id: "WH-002", name: "Crane Overhead", description: "Overhead Crane 5T" },
-    { id: "WH-003", name: "Pallet Jack", description: "Manual Pallet Jack 2.5T" },
-    { id: "WH-004", name: "Conveyor System", description: "Warehouse Conveyor" },
-    { id: "WH-005", name: "Barcode Scanner", description: "Wireless Barcode Scanner" },
-  ],
-}
+  // Remove hardcoded data - we'll fetch from API instead
+  const workingRequests = workRequests.filter(req => req.status === "pending" || req.status === "In Review");
+
+  
+
+  const handleApprove = async (requestId: string) => {
+    try {
+      // Use the correct token key that matches your other components
+      const token = localStorage.getItem("access") || localStorage.getItem("accessToken");
+      
+      if (!token) {
+        alert("No authentication token found. Please login again.");
+        return;
+      }
+
+      // Using the correct API endpoint structure
+      const res = await fetch(`http://localhost:8000/api/work-request/create/${requestId}/approve/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: "approved" }),
+      });
+
+      // Check if response is actually JSON
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Server returned non-JSON response:", await res.text());
+        alert(`Server error: Expected JSON response but got ${contentType}`);
+        return;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Request ${requestId} approved! Work Order will be created.`);
+        // Refresh the work requests list
+        fetchWorkRequests();
+      } else {
+        const data = await res.json();
+        alert(`Failed to approve: ${data.error || data.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error("Error approving:", err);
+      alert("Error occurred while approving request. Please check the console for details.");
+    }
+  };
+
+  const handleCancel = async (requestId: string) => {
+    try {
+      // Use the correct token key that matches your other components
+      const token = localStorage.getItem("access") || localStorage.getItem("accessToken");
+      
+      if (!token) {
+        alert("No authentication token found. Please login again.");
+        return;
+      }
+
+      // Using the correct API endpoint structure
+      const res = await fetch(`http://localhost:8000/api/work-request/${requestId}/reject/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: "rejected" }),
+      });
+
+      // Check if response is actually JSON
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Server returned non-JSON response:", await res.text());
+        alert(`Server error: Expected JSON response but got ${contentType}`);
+        return;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Request ${requestId} has been cancelled.`);
+        // Refresh the work requests list
+        fetchWorkRequests();
+      } else {
+        const data = await res.json();
+        alert(`Failed to cancel: ${data.error || data.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error("Error rejecting:", err);
+      alert("Error occurred while cancelling request. Please check the console for details.");
+    }
+  };
+
+  // Fetch work requests from API
+  const fetchWorkRequests = async () => {
+    try {
+      setIsLoadingRequests(true);
+      const response = await fetch("http://localhost:8000/api/work-request/create/");
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      
+      const data = await response.json();
+      setWorkRequests(data);
+      console.log("Work Request API response:", data);
+    } catch (error) {
+      console.error("Error fetching work requests:", error);
+      // Keep empty array as fallback
+      setWorkRequests([]);
+      
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  };
 
   // Fetching data from API
   useEffect(() => {
-    fetch("http://localhost:8000/api/work-request/")
+    fetch("http://localhost:8000/api/work-order-list/")
       .then((response) => response.json())
       .then((data) => {
-        setWorkRequests(data);
+        setWorkOrders(data);
         setIsLoading(false);
         if (data.length > 0) {
           const latestData = data[0];
-          setWr_number(latestData.wr_number);
+          setWo_no(latestData.no);
           setTitle(latestData.title);
-          setWr_request_by_date(latestData.wr_request_by_date);
-          setWr_type(latestData.wr_type);
+          setWo_created_date(latestData.wo_created_date);
+          setWo_status(latestData.wo_status);
           setResource(latestData.resource);
           setWo_description(latestData.wo_description);
+          setWo_type(latestData.wo_type);
           setWr_requestor(latestData.wr_requestor);
+          setWo_actual_completion_date(latestData.wo_actual_completion_date);
+          setActual_duration(latestData.actual_duration);
           setYear(latestData.year);
           setMonth(latestData.month);
           setWeek_of_month(latestData.week_of_month);
@@ -114,59 +175,81 @@ WH: [
         console.error("Error fetching data:", error);
         setIsLoading(false);
       });
+    
+    // Also fetch work requests
+    fetchWorkRequests();
   }, []);
-
-  const [selectedDepartment, setSelectedDepartment] = useState("")
-  const [selectedAsset, setSelectedAsset] = useState("")
-  const [availableAssets, setAvailableAssets] = useState([])
-
-    // Update available assets when department changes
-  const handleDepartmentChange = (department) => {
-    setSelectedDepartment(department)
-    setSelectedAsset("") // Reset asset selection
-    setAvailableAssets(assetsByDepartment[department] || [])
-  }
-
-
 
   // Filter work orders based on week selection
   useEffect(() => {
     // First filter by week_of_month if it's not null
-    let filteredData = workRequests;
+    let filteredData = workOrders;
     if (week_of_month !== null) {
-      filteredData = filteredData.filter((wr) => wr.week_of_month === week_of_month);
+      filteredData = filteredData.filter((wo) => wo.week_of_month === week_of_month);
     }
 
     // Then filter by year if it's not null
     if (year !== null) {
-      filteredData = filteredData.filter((wr) => wr.year === year);
+      filteredData = filteredData.filter((wo) => wo.year === year);
     }
 
     if (month !== null) {
-      filteredData = filteredData.filter((wr) => wr.month === month);
+      filteredData = filteredData.filter((wo) => wo.month === month);
     }
 
     // Set filtered work orders after both filters are applied
-    setFilteredWorkRequests(filteredData);
-  }, [year, month, week_of_month, workRequests]);
+    setFilteredWorkOrders(filteredData);
+  }, [year, month, week_of_month, workOrders]);
 
-  // Status color helper function
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "In Review":
+  // Supabase real-time subscription (commented out since supabase import is missing)
+  /*
+  useEffect(() => {
+    const channel = supabase
+      .channel('list_orders_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'main_data',
+        },
+        (payload) => {
+          console.log("Change detected:", payload);
+
+          // If it's an insert event, add the new work order to the state
+          if (payload.eventType === "INSERT") {
+            setWorkOrders((prev) => [...prev, payload.new]);
+          }
+
+          // If it's an update event, find and update the corresponding work order
+          if (payload.eventType === "UPDATE") {
+            setWorkOrders((prev) =>
+              prev.map((wo) => (wo.no === payload.new.no ? payload.new : wo))
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+  */
+
+  const getStatusColor = (wo_status: string) => {
+    switch (wo_status) {
+      case "Released":
         return "bg-blue-100 text-blue-800";
-      case "Approved":
+      case "Unreleased":
+        return "bg-yellow-100 text-yellow-800";
+      case "Complete":
         return "bg-green-100 text-green-800";
-      case "Rejected":
-        return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
-  // Category color helper function
   const getCategoryColor = (resource: string) => {
     switch (resource) {
       case "MTC":
@@ -175,6 +258,12 @@ WH: [
         return "bg-orange-100 text-orange-800";
       case "UTY":
         return "bg-cyan-100 text-cyan-800";
+      case "personnel":
+        return "bg-blue-100 text-blue-800";
+      case "material":
+        return "bg-green-100 text-green-800";
+      case "tooling":
+        return "bg-yellow-100 text-yellow-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -182,12 +271,15 @@ WH: [
 
   return (
     <div className="flex flex-col min-h-screen">
+      {/* Loading state */}
+      {isLoading && <div>Loading...</div>}
+
       {/* Header */}
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <div className="flex flex-1 items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold">Request Management</h1>
-            <p className="text-sm text-muted-foreground">Kelola permintaan perbaikan dan maintenance</p>
+            <h1 className="text-lg font-semibold">Work Orders Management</h1>
+            <p className="text-sm text-muted-foreground">Kelola dan pantau semua work orders</p>
           </div>
         </div>
       </header>
@@ -198,60 +290,142 @@ WH: [
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Total WO</CardTitle>
+              <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredWorkRequests.length}</div>
+              <div className="text-2xl font-bold">{filteredWorkOrders.length}</div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <CardTitle className="text-sm font-medium">Released</CardTitle>
+              <AlertCircle className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">
+                {filteredWorkOrders.filter((wo) => wo.wo_status === "Released").length}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Unreleased</CardTitle>
               <Clock className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">
-                {filteredWorkRequests.filter((req) => req.status === "Pending" || req.status === "In Review").length}
+                {filteredWorkOrders.filter((wo) => wo.wo_status === "Unreleased").length}
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Approved</CardTitle>
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {filteredWorkRequests.filter((req) => req.status === "Approved").length}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Rejected</CardTitle>
-              <XCircle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {filteredWorkRequests.filter((req) => req.status === "Rejected").length}
+                {filteredWorkOrders.filter((wo) => wo.wo_status === "Complete").length}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs */}
+        {/* Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filter & Pencarian</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Input placeholder="Cari WO berdasarkan ID, judul, atau deskripsi..." className="pl-8" />
+                </div>
+              </div>
+              <Select>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kategori</SelectItem>
+                  <SelectItem value="mtc">MTC</SelectItem>
+                  <SelectItem value="cal">CAL</SelectItem>
+                  <SelectItem value="uty">UTY</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Work Orders Tabs */}
         <Tabs defaultValue="list" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="list">Daftar Request</TabsTrigger>
-            <TabsTrigger value="create">Buat Request Baru</TabsTrigger>
+            <TabsTrigger value="list">List View</TabsTrigger>
+            <TabsTrigger value="requests">Working Requests</TabsTrigger>
           </TabsList>
 
           <TabsContent value="list" className="space-y-4">
-            {/* Filters */}
+            {filteredWorkOrders.map((wo) => (
+              <Card key={wo.no}>
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold">{wo.title}</h3>
+                        <Badge variant="outline">{wo.no}</Badge>
+                        <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
+                        <Badge className={getStatusColor(wo.wo_status)}>{wo.wo_status}</Badge>
+                      </div>
+
+                      <p className="text-sm text-muted-foreground">{wo.wo_description}</p>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span>Assignee: {wo.wr_requestor}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>Due: {wo.wo_actual_completion_date} </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span>Est: {wo.actual_duration} </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Wrench className="h-4 w-4 text-muted-foreground" />
+                          <span>Type: {wo.wo_type}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>View Details</DropdownMenuItem>
+                        <DropdownMenuItem>Edit WO</DropdownMenuItem>
+                        <DropdownMenuItem>Update Status</DropdownMenuItem>
+                        <DropdownMenuItem>Add Comment</DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600">Close WO</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+          
+          <TabsContent value="requests" className="space-y-4">
+            {/* Filter & Pencarian untuk Requests */}
             <Card>
               <CardHeader>
                 <CardTitle>Filter & Pencarian</CardTitle>
@@ -266,14 +440,13 @@ WH: [
                   </div>
                   <Select>
                     <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Status" />
+                      <SelectValue placeholder="Prioritas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Semua Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="review">In Review</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="all">Semua Prioritas</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select>
@@ -291,160 +464,78 @@ WH: [
               </CardContent>
             </Card>
 
-            {/* Request List */}
+            {/* Working Requests List */}
             <div className="space-y-4">
-              {filteredWorkRequests.map((req) => (
-                <Card key={req.wr_number}>
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-3 flex-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold">{req.title}</h3>
-                          <Badge variant="outline">{req.wr_number}</Badge>
-                          <Badge className={getCategoryColor(req.resource)}>{req.resource}</Badge>
-                          {/* <Badge variant={getPriorityColor(req.priority)}>{req.priority}</Badge> */}
-                          <Badge className={getStatusColor(req.status)}>{req.status}</Badge>
+              {isLoadingRequests ? (
+                <div className="text-center py-8">Loading work requests...</div>
+              ) : workingRequests.length === 0 ? (
+                <Alert>
+                  <AlertDescription>Tidak ada working request yang menunggu persetujuan saat ini.</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-4">
+                  {workingRequests.map((request) => (
+                    <Card key={request.wr_number || request.id}>
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-3 flex-1">
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-lg font-semibold">{request.title}</h3>
+                              <Badge variant="outline">{request.wr_number || request.id}</Badge>
+                              <Badge className={getCategoryColor(request.resource || request.category)}>
+                                {request.resource || request.category}
+                              </Badge>
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                {request.urgency}
+                              </Badge>
+                            </div>
+
+                            <p className="text-sm text-muted-foreground">
+                              {request.wo_description || request.description}
+                            </p>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <span>Requester: {request.wr_requestor || request.requester}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span>Date: {request.wr_request_by_date || request.requestDate}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleApprove(request.wr_number || request.id)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive" 
+                              onClick={() => handleCancel(request.wr_number || request.id)}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Cancel
+                            </Button>
+                          </div>
                         </div>
-
-                        <p className="text-sm text-muted-foreground">{req.wo_description}</p>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span>Requester: {req.wr_requestor}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {<Calendar className="h-4 w-4 text-muted-foreground" />}
-                            <span>Date: {req.wr_request_by_date} </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                            <span>Urgency: {req.urgency}</span>
-                          </div>
-                          {/* <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">Cost: Rp {req.estimatedCost.toLocaleString()}</span>
-                          </div> */}
-                        </div>
-
-                        {req.status === "Approved" && req.workOrderId && (
-                          <div className="flex items-center gap-2 text-sm text-green-600">
-                            <CheckCircle className="h-4 w-4" />
-                            <span>Work Order Created: {req.wr_request_by_date}</span>
-                          </div>
-                        )}
-
-                        {req.status === "Rejected" && req.rejectionReason && (
-                          <div className="flex items-center gap-2 text-sm text-red-600">
-                            <XCircle className="h-4 w-4" />
-                            <span>Rejection Reason: {req.rejectionReason}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>Edit Request</DropdownMenuItem>
-                          {req.status === "Pending" && (
-                            <>
-                              <DropdownMenuItem className="text-green-600">Approve</DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">Reject</DropdownMenuItem>
-                            </>
-                          )}
-                          {req.status === "Approved" && !req.workOrderId && (
-                            <DropdownMenuItem className="text-blue-600">Create Work Order</DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-          </TabsContent>
-          <TabsContent value="create" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Buat Request Baru</CardTitle>
-                <CardDescription>
-                  Isi form di bawah untuk mengajukan permintaan perbaikan atau maintenance
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Judul Request *</Label>
-                    <Input id="title" placeholder="Masukkan judul request..." />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Request Description/Deskripsi Detail *</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Jelaskan secara detail masalah yang dihadapi, gejala yang terlihat, dan tindakan yang diharapkan..."
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="assetDepartment">Asset Department *</Label>
-                    <Select value={selectedDepartment} onValueChange={handleDepartmentChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih department asset" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="EN">EN - Engineering</SelectItem>
-                        <SelectItem value="GA">GA - General Affairs</SelectItem>
-                        <SelectItem value="PD">PD - Production</SelectItem>
-                        <SelectItem value="QA">QA - Quality Assurance</SelectItem>
-                        <SelectItem value="QC">QC - Quality Control</SelectItem>
-                        <SelectItem value="RD">RD - Research & Development</SelectItem>
-                        <SelectItem value="WH">WH - Warehouse</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="assetNumber">Nomor Asset *</Label>
-                    <Select value={selectedAsset} onValueChange={setSelectedAsset} disabled={!selectedDepartment}>
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={selectedDepartment ? "Pilih nomor asset" : "Pilih department terlebih dahulu"}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableAssets.map((asset) => (
-                          <SelectItem key={asset.id} value={asset.id}>
-                            {asset.id} - {asset.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedAsset && (
-                      <p className="text-sm text-muted-foreground">
-                        {availableAssets.find((asset) => asset.id === selectedAsset)?.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-4">
-                  <Button variant="outline">Reset Form</Button>
-                  <Button>Submit Request</Button>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </main>
     </div>
   );
-  
 };
 
-
-
-export default WorkRequestPage;
+export default WorkOrdersPage;
