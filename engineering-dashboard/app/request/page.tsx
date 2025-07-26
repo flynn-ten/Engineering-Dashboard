@@ -1,20 +1,27 @@
-// WorkRequestPage.tsx - Full Version with HandleForm, Submit, Reset
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle, Search, User, MoreHorizontal } from "lucide-react";
-import { CardDescription } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
-
+import { Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle, Calendar, User, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type UserProfile = {
   role: string;
@@ -24,8 +31,6 @@ type UserProfile = {
   status: string;
 };
 
-
-
 type CurrentUserType = {
   id: number;
   username: string;
@@ -33,60 +38,46 @@ type CurrentUserType = {
   userprofile: UserProfile;
 };
 
-type WorkRequest = {
-  wr_number: number;
-  title: string;
-  wo_description: string;
-  wr_type: string;
-  wr_requestor: {
-    id: number;
-    username: string;
-    email?: string;
-  };
-  wr_request_by_date: string;
-  year: number;
-  month: number;
-  week_of_month: number;
-  resource: "MTC" | "CAL" | "UTY";
-  asset_number: string;
-  asset_department: "EN" | "GA" | "PD" | "QA" | "QC" | "RD" | "WH";
-  urgency: string;
-  status: string;
-  created_at?: string;
-  updated_at?: string;
-
-  // Tambahkan baris ini
-  rejectionReason?: string;
-  workOrderId?: number;
-};
-
-
 type Asset = {
   id: string;
   name: string;
   description: string;
 };
 
-
-const WorkRequestPage = () => {
-  const [role, setRole] = useState(null);
+export default function WorkRequestPage() {
+  const [role, setRole] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUserType | null>(null);
-  const [filteredWorkRequests, setFilteredWorkRequests] = useState<WorkRequest[]>([]);
-  
-  const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    wo_description: '',
-    asset_department: '',
-    asset_number: '',
-    wr_type: 'Perbaikan',
-    resource: '',
-    urgency: 'Normal',
-  });
+  const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedAsset, setSelectedAsset] = useState('');
+  const [filteredWorkRequests, setFilteredWorkRequests] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('');
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    asset_number: '',
+    asset_department: '',
+    resource: '',
+    urgency: '',
+    wr_type: '',
+    failure_code: '',
+    failure_cause: '',
+    resolution: '',
+    actual_failure_date: '',
+  });
+
+  const displayedRequests = filteredWorkRequests.filter((req) => {
+    const matchRole = role === "admin" || req.wr_requestor.id === currentUser?.id;
+    const matchSearch = searchTerm === '' || req.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus = statusFilter === 'all' || req.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchCategory = categoryFilter === 'all' || req.resource.toLowerCase() === categoryFilter.toLowerCase();
+    return matchRole && matchSearch && matchStatus && matchCategory;
+  });
 
   const assetsData = {
     EN: [
@@ -98,183 +89,159 @@ const WorkRequestPage = () => {
     ],
   };
 
-  useEffect(() => {
-    const checkUserAuth = async () => {
-      try {
-        const userJson = localStorage.getItem("user");
-        if (!userJson) return;
-        const user = JSON.parse(userJson);
-        setCurrentUser(user);
-        setRole(user.userprofile?.role);
-        fetchWorkRequests();
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkUserAuth();
-  }, []);
-
-  
   const handleFormChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const handleDepartmentChange = (value: string) => {
+    setSelectedDepartment(value);
+    handleFormChange("asset_department", value);
+    setAvailableAssets(assetsData[value as keyof typeof assetsData] || []);
+    setSelectedAsset('');
+  };
 
-const handleDepartmentChange = (value: string) => {
-  setFormData((prev) => ({
-    ...prev,
-    asset_department: value,
-    asset_number: "",
-  }));
-  const newAssets = assetsData[value as keyof typeof assetsData] || [];
-  setAvailableAssets(newAssets);
-};
-
+  const handleAssetChange = (value: string) => {
+    setSelectedAsset(value);
+    handleFormChange("asset_number", value);
+  };
 
   const resetForm = () => {
     setFormData({
       title: '',
-      wo_description: '',
-      asset_department: '',
+      description: '',
       asset_number: '',
-      wr_type: 'Perbaikan',
+      asset_department: '',
       resource: '',
-      urgency: 'Normal',
+      urgency: '',
+      wr_type: '',
+      failure_code: '',
+      failure_cause: '',
+      resolution: '',
+      actual_failure_date: '',
     });
+    setSelectedAsset('');
+    setSelectedDepartment('');
     setAvailableAssets([]);
   };
 
-  const generateWRNumber = () => {
-    const year = new Date().getFullYear();
-    const random = Math.floor(Math.random() * 1000) + 1;
-    return parseInt(`${year}${random.toString().padStart(3, '0')}`);
+  const refreshAccessToken = async (): Promise<string> => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) throw new Error("Refresh token not found");
+
+    const res = await fetch("http://localhost:8000/api/token/refresh/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.access) {
+      localStorage.setItem("accessToken", data.access);
+      return data.access;
+    } else {
+      throw new Error("Refresh token invalid or expired");
+    }
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || !formData.wo_description || !formData.asset_department || !formData.asset_number || !formData.resource) {
-      alert("Harap lengkapi semua field.");
+    if (!formData.title || !formData.description || !formData.asset_number || !formData.asset_department) {
+      alert("🛑 Mohon lengkapi semua field wajib!");
       return;
     }
-    setSubmitting(true);
-    try {
-      const userJson = localStorage.getItem("user");
-      const user = userJson ? JSON.parse(userJson) : null;
-      const now = new Date();
-      const payload = {
-        wr_number: generateWRNumber(),
-        title: formData.title,
-        wo_description: formData.wo_description,
-        wr_type: formData.wr_type,
-        wr_requestor: user.id,
-        wr_request_by_date: now.toISOString().split("T")[0],
-        year: now.getFullYear(),
-        month: now.getMonth() + 1,
-        week_of_month: Math.ceil(now.getDate() / 7),
-        resource: formData.resource,
-        asset_number: formData.asset_number,
-        asset_department: formData.asset_department,
-        urgency: formData.urgency,
-        status: "Pending",
-      };
-      const res = await fetch(`http://localhost:8000/api/work-requests/create/`, {
+
+    const payload = {
+      ...formData,
+      wr_number: generateWRNumber(),
+    };
+
+    let token = localStorage.getItem("accessToken");
+
+    const sendRequest = async (usedToken: string) => {
+      return await fetch("http://localhost:8000/api/work-requests/create/", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          Authorization: `Bearer ${usedToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
+    };
+
+    try {
+      setSubmitting(true);
+      let res = await sendRequest(token!);
+      if (res.status === 401) {
+        token = await refreshAccessToken();
+        res = await sendRequest(token);
+      }
+      const data = await res.json();
       if (res.ok) {
-        alert("Request berhasil dibuat!");
+        alert("✅ Request berhasil dibuat!");
         resetForm();
-        fetchWorkRequests();
       } else {
-        const err = await res.json();
-        alert(err.detail || "Gagal membuat request");
+        alert(data.detail || "❌ Gagal membuat request");
       }
     } catch (err) {
-      console.error(err);
-      alert("Terjadi kesalahan jaringan");
+      console.error("🔥 Error submitting:", err);
+      alert("Terjadi kesalahan saat submit.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  
-
-  const fetchWorkRequests = async () => {
-  const token = localStorage.getItem("accessToken");
-  console.log("🔐 Access Token:", token); // 👈 DEBUG
-
-  try {
-    setLoading(true);
-    const res = await fetch(`http://localhost:8000/api/work-requests/create/`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) {
-      console.error("❌ Fetch error:", res.status);
-    }
-
-    const data = await res.json();
-    setFilteredWorkRequests(data);
-  } catch (err) {
-    console.error("❗Error:", err);
-    setFilteredWorkRequests([]);
-  } finally {
+  useEffect(() => {
+    const userJson = localStorage.getItem("user");
+    if (!userJson) return;
+    const user = JSON.parse(userJson);
+    setCurrentUser(user);
+    setRole(user.userprofile?.role);
     setLoading(false);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-6 w-6 mr-2" /> Loading...
+      </div>
+    );
   }
-};
 
 
-  const displayedRequests = Array.isArray(filteredWorkRequests)
-  ? filteredWorkRequests.filter((req) => {
-      if (role === "admin") return true;
-      return req.wr_requestor.id === currentUser?.id;
-    })
-  : [];
-  
-
-  const getStatusColor = (status: string) => {
-  switch (status) {
-    case "Pending":
-      return "bg-yellow-100 text-yellow-800";
-    case "In Review":
+  function getCategoryColor(resource: string): string {
+  switch (resource.toLowerCase()) {
+    case "personnel":
       return "bg-blue-100 text-blue-800";
-    case "Approved":
+    case "material":
+      return "bg-yellow-100 text-yellow-800";
+    case "tooling":
+      return "bg-purple-100 text-purple-800";
+    case "other":
+      return "bg-gray-200 text-gray-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+}
+
+
+  function getStatusColor(status: string): string {
+  switch (status.toLowerCase()) {
+    case "pending":
+      return "bg-yellow-100 text-yellow-800";
+    case "in review":
+      return "bg-blue-100 text-blue-800";
+    case "approved":
       return "bg-green-100 text-green-800";
-    case "Rejected":
+    case "rejected":
       return "bg-red-100 text-red-800";
     default:
       return "bg-gray-100 text-gray-800";
   }
-};
-
-const getCategoryColor = (resource: string) => {
-  switch (resource) {
-    case "MTC":
-      return "bg-purple-100 text-purple-800";
-    case "CAL":
-      return "bg-orange-100 text-orange-800";
-    case "UTY":
-      return "bg-cyan-100 text-cyan-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-};
-
-const handleViewDetails = (request: WorkRequest) => {
-  console.log("Detail request:", request);
-  // bisa kamu ganti show modal/detail section
-};
+}
 
 
-  if (loading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-6 w-6 mr-2" />Loading...</div>;
+  function handleViewDetails(req: any): void {
+  alert(`📄 Detail Work Request\n\nWR Number: ${req.wr_number}\nJudul: ${req.title}\nDeskripsi: ${req.description}`);
+}
 
 
   return (
@@ -371,42 +338,27 @@ const handleViewDetails = (request: WorkRequest) => {
                 <CardTitle>Filter & Pencarian</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        placeholder="Cari request berdasarkan ID, judul, atau deskripsi..." 
-                        className="pl-8" 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Semua Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="review">In Review</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Kategori" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Semua Kategori</SelectItem>
-                      <SelectItem value="mtc">MTC</SelectItem>
-                      <SelectItem value="cal">CAL</SelectItem>
-                      <SelectItem value="uty">UTY</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <div className="flex gap-4 mb-4">
+  <Input
+    placeholder="Cari berdasarkan judul..."
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    className="w-1/2"
+  />
+  <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
+    <SelectTrigger className="w-1/4">
+      <SelectValue placeholder="Filter Status" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="all">Semua</SelectItem>
+      <SelectItem value="pending">Pending</SelectItem>
+      <SelectItem value="approved">Approved</SelectItem>
+      <SelectItem value="rejected">Rejected</SelectItem>
+      <SelectItem value="in_review">In Review</SelectItem>
+    </SelectContent>
+  </Select>
+</div>
+
               </CardContent>
             </Card>
 
@@ -485,154 +437,161 @@ const handleViewDetails = (request: WorkRequest) => {
           </TabsContent>
 
           <TabsContent value="create" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Buat Request Baru</CardTitle>
-                <CardDescription>
-                  Isi form di bawah untuk mengajukan permintaan perbaikan atau maintenance
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Judul Request *</Label>
-                    <Input 
-                      id="title" 
-                      placeholder="Masukkan judul request..." 
-                      value={formData.title}
-                      onChange={(e) => handleFormChange('title', e.target.value)}
-                      required
-                    />
-                  </div>
+  <Card>
+    <CardHeader>
+      <CardTitle>Buat Request Baru</CardTitle>
+      <CardDescription>
+        Isi form di bawah untuk mengajukan permintaan perbaikan atau maintenance
+      </CardDescription>
+    </CardHeader>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Request Description/Deskripsi Detail *</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Jelaskan secara detail masalah yang dihadapi, gejala yang terlihat, dan tindakan yang diharapkan..."
-                      rows={4}
-                      value={formData.wo_description}
-                      onChange={(e) => handleFormChange('wo_description', e.target.value)}
-                      required
-                    />
-                  </div>
+    <CardContent className="space-y-6">
+      <div className="space-y-6">
+        {/* Judul Request */}
+        <div className="space-y-2">
+          <Label htmlFor="title">Judul Request *</Label>
+          <Input id="title" placeholder="Masukkan judul request..." />
+        </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="wrType">Jenis Request *</Label>
-                    <Select value={formData.wr_type} onValueChange={(value) => handleFormChange('wr_type', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih jenis request" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Perbaikan">Perbaikan</SelectItem>
-                        <SelectItem value="Maintenance">Maintenance</SelectItem>
-                        <SelectItem value="Kalibrasi">Kalibrasi</SelectItem>
-                        <SelectItem value="Instalasi">Instalasi</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+        {/* Deskripsi */}
+        <div className="space-y-2">
+          <Label htmlFor="description">Request Description/Deskripsi Detail *</Label>
+          <Textarea
+            id="description"
+            placeholder="Jelaskan secara detail masalah yang dihadapi, gejala yang terlihat, dan tindakan yang diharapkan..."
+            rows={4}
+          />
+        </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="resource">Resource Category *</Label>
-                    <Select value={formData.resource} onValueChange={(value) => handleFormChange('resource', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih kategori resource" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="MTC">MTC - Maintenance</SelectItem>
-                        <SelectItem value="CAL">CAL - Calibration</SelectItem>
-                        <SelectItem value="UTY">UTY - Utility</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+        {/* Department */}
+        <div className="space-y-2">
+          <Label htmlFor="assetDepartment">Asset Department *</Label>
+          <Select value={selectedDepartment} onValueChange={handleDepartmentChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Pilih department asset" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="EN">EN - Engineering</SelectItem>
+              <SelectItem value="GA">GA - General Affairs</SelectItem>
+              <SelectItem value="PD">PD - Production</SelectItem>
+              <SelectItem value="QA">QA - Quality Assurance</SelectItem>
+              <SelectItem value="QC">QC - Quality Control</SelectItem>
+              <SelectItem value="RD">RD - Research & Development</SelectItem>
+              <SelectItem value="WH">WH - Warehouse</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="assetDepartment">Asset Department *</Label>
-                    <Select value={formData.asset_department} onValueChange={handleDepartmentChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih department asset" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="EN">EN - Engineering</SelectItem>
-                        <SelectItem value="GA">GA - General Affairs</SelectItem>
-                        <SelectItem value="PD">PD - Production</SelectItem>
-                        <SelectItem value="QA">QA - Quality Assurance</SelectItem>
-                        <SelectItem value="QC">QC - Quality Control</SelectItem>
-                        <SelectItem value="RD">RD - Research & Development</SelectItem>
-                        <SelectItem value="WH">WH - Warehouse</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+        {/* Asset Number */}
+        <div className="space-y-2">
+          <Label htmlFor="assetNumber">Nomor Asset *</Label>
+          <Select value={selectedAsset} onValueChange={setSelectedAsset} disabled={!selectedDepartment}>
+            <SelectTrigger>
+              <SelectValue
+                placeholder={selectedDepartment ? "Pilih nomor asset" : "Pilih department terlebih dahulu"}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {availableAssets.map((asset) => (
+                <SelectItem key={asset.id} value={asset.id}>
+                  {asset.id} - {asset.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedAsset && (
+            <p className="text-sm text-muted-foreground">
+              {availableAssets.find((asset) => asset.id === selectedAsset)?.description}
+            </p>
+          )}
+        </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="assetNumber">Nomor Asset *</Label>
-                    <Select 
-                      value={formData.asset_number} 
-                      onValueChange={(value) => handleFormChange('asset_number', value)} 
-                      disabled={!formData.asset_department}
-                    >
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={formData.asset_department ? "Pilih nomor asset" : "Pilih department terlebih dahulu"}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableAssets.map((asset) => (
-                          <SelectItem key={asset.id} value={asset.id}>
-                            {asset.id} - {asset.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {formData.asset_number && (
-                      <p className="text-sm text-muted-foreground">
-                        {availableAssets.find((asset) => asset.id === formData.asset_number)?.description}
-                      </p>
-                    )}
-                  </div>
+        {/* Resource */}
+        <div className="space-y-2">
+          <Label htmlFor="resource">Resource Dibutuhkan *</Label>
+          <Select>
+            <SelectTrigger>
+              <SelectValue placeholder="Pilih resource yang dibutuhkan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="personnel">Tenaga Kerja / Teknisi</SelectItem>
+              <SelectItem value="material">Material / Spare Part</SelectItem>
+              <SelectItem value="tooling">Peralatan / Tools</SelectItem>
+              <SelectItem value="other">Lainnya</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="urgency">Tingkat Urgency</Label>
-                    <Select value={formData.urgency} onValueChange={(value) => handleFormChange('urgency', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih tingkat urgency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Low">Low</SelectItem>
-                        <SelectItem value="Normal">Normal</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                        <SelectItem value="Critical">Critical</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+        {/* Urgency */}
+        <div className="space-y-2">
+          <Label htmlFor="urgency">Tingkat Urgensi *</Label>
+          <Select>
+            <SelectTrigger>
+              <SelectValue placeholder="Pilih tingkat urgensi" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-                  <div className="flex justify-end gap-4">
-                    <Button type="button" variant="outline" onClick={resetForm}>
-                      Reset Form
-                    </Button>
-                    <Button onClick={handleSubmit} disabled={submitting}>
-                      {submitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        'Submit Request'
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        {/* Work Request Type */}
+        <div className="space-y-2">
+          <Label htmlFor="wr_type">Tipe Permintaan *</Label>
+          <Select>
+            <SelectTrigger>
+              <SelectValue placeholder="Pilih jenis permintaan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="repair">Repair</SelectItem>
+              <SelectItem value="inspection">Inspection</SelectItem>
+              <SelectItem value="corrective">Corrective</SelectItem>
+              <SelectItem value="modification">Modification</SelectItem>
+              <SelectItem value="routine">Routine Check</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Failure Code */}
+        <div className="space-y-2">
+          <Label htmlFor="failureCode">Failure Code (Opsional)</Label>
+          <Input id="failureCode" placeholder="Kode kerusakan jika diketahui..." />
+        </div>
+
+        {/* Failure Cause */}
+        <div className="space-y-2">
+          <Label htmlFor="failureCause">Penyebab Kerusakan (Opsional)</Label>
+          <Textarea id="failureCause" placeholder="Tuliskan penyebab kerusakan jika diketahui..." />
+        </div>
+
+        {/* Resolution */}
+        <div className="space-y-2">
+          <Label htmlFor="resolution">Solusi yang Diharapkan (Opsional)</Label>
+          <Textarea id="resolution" placeholder="Saran solusi atau tindakan jika ada..." />
+        </div>
+
+        {/* Actual Failure Date */}
+        <div className="space-y-2">
+          <Label htmlFor="actualFailureDate">Tanggal Kejadian (Opsional)</Label>
+          <Input id="actualFailureDate" type="date" />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-4">
+        <Button variant="outline">Reset Form</Button>
+        <Button>Submit Request</Button>
+      </div>
+    </CardContent>
+  </Card>
+</TabsContent>
         </Tabs>
       </main>
     </div>
   );
+
+  function generateWRNumber() {
+    throw new Error("Function not implemented.");
+  }
 };
-
-export default WorkRequestPage;
-
-function fetchWorkRequests() {
-  throw new Error("Function not implemented.");
-}

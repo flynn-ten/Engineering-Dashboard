@@ -12,10 +12,11 @@ from .views import (
     unreleased_work_orders,
     work_order_list,
     work_request_list,
-
-    # 📝 Work Request (Model-based)
-    WORequesterListAPIView,
-    WORequesterCreateAPIView,
+    
+    WorkRequestCreateAPIView,
+    UserStatusUpdateView,
+    EnergyInputCreateView,
+    UserEnergyInputListView,
 )
 
 urlpatterns = [
@@ -31,8 +32,16 @@ urlpatterns = [
     path('unreleased-work-orders/', unreleased_work_orders, name='unreleased-work-orders'),
     path('work-order-list/', work_order_list, name='work-order-list'),
     path('work-request/', work_request_list, name='work-request-list-raw'),
+    
+    path('work-requests/create/', WorkRequestCreateAPIView.as_view(), name='work-request-create'),
+    path("users/<int:pk>/status/", UserStatusUpdateView.as_view(), name="update-user-status"),
+    
+    path("energy-input/create/", EnergyInputCreateView.as_view(), name="energy-input-create"),
+    path("energy-input/my/", UserEnergyInputListView.as_view(), name="energy-input-my"),
 
-    # 📝 Work Request (Model-based)
-    path('work-requests/', WORequesterListAPIView.as_view(), name='work-request-list'),
-    path('work-requests/create/', WORequesterCreateAPIView.as_view(), name='create-work-request'),
+
 ]
+
+
+
+

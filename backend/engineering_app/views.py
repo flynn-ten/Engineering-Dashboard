@@ -7,13 +7,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from .models import UserProfile, WORequesterTwo
+from .models import UserProfile
 from .serializers import (
     UserSerializer,
     UserProfileWithUserSerializer,
-    WORequesterTwoSerializer
 )
-from .permissions import IsAdminUserProfile, IsRequester
+from .permissions import IsAdminUserProfile
+
 
 # ----------------------------
 # 🔐 MeView & Auth
@@ -213,40 +213,90 @@ def work_request_list(request):
     ]
     return JsonResponse(result, safe=False)
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from .models import WorkRequest
+from .serializers import WorkRequestSerializer
 
-# ----------------------------
-# 📑 Work Request Views
-# ----------------------------
-
-class WORequesterCreateAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+class WorkRequestCreateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        serializer = WorkRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(requested_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserStatusUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
         try:
-            data = request.data.copy()
-            data['wr_requestor'] = request.user.id
-            serializer = WORequesterTwoSerializer(data=data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            user = User.objects.get(pk=pk)
+            user_profile = user.userprofile
+            status = request.data.get("status")
+            if status in ["Active", "Inactive"]:
+                user_profile.status = status
+                user_profile.save()
+                return Response({"message": "Status updated successfully"})
+            return Response({"error": "Invalid status"}, status=400)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+        
+        
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from rest_framework.parsers import MultiPartParser, FormParser  # ✅ tambahkan ini
+
+from .serializers import EnergyInputSerializer
+from .models import EnergyInput
 
 
-class WORequesterListAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsRequester]
+class EnergyInputCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = EnergyInputSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)  # ✅ inject user langsung di save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserEnergyInputListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        if hasattr(user, 'userprofile'):
-            role = user.userprofile.role
-            if role == 'admin':
-                queryset = WORequesterTwo.objects.all().order_by('-wr_request_by_date')
-            else:
-                queryset = WORequesterTwo.objects.filter(wr_requestor=user).order_by('-wr_request_by_date')
-        else:
-            return Response({"error": "User profile not found"}, status=status.HTTP_403_FORBIDDEN)
-
-        serializer = WORequesterTwoSerializer(queryset, many=True)
+        energy_type = request.query_params.get('type')  # filter: listrik, air, cng
+        inputs = EnergyInput.objects.filter(user=request.user)
+        if energy_type:
+            inputs = inputs.filter(type=energy_type)
+        serializer = EnergyInputSerializer(inputs.order_by('-created_at'), many=True)
         return Response(serializer.data)
+
+class TodayEnergyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = date.today()
+        data = []
+
+        for energy_type in ["listrik", "air", "cng"]:
+            entries = EnergyInput.objects.filter(
+                user=request.user,
+                date=today,
+                type=energy_type
+            )
+            total_value = entries.aggregate(total=Sum("value"))["total"] or 0
+            data.append({
+                "type": energy_type,
+                "current": float(total_value),
+                "budget": 100,  # default budget, bisa kamu sesuaikan
+                "unit": "kWh" if energy_type == "listrik" else "m³"
+            })
+
+        return Response(data)

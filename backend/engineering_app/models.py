@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 
+
 class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('admin', 'Admin'),
@@ -61,62 +62,77 @@ class WorkOrderList(models.Model):
     def __str__(self):
         return self.wo_description
 
+
 class WorkRequest(models.Model):
-    wr_number = models.BigIntegerField(unique=True)
-    title = models.CharField(max_length=255)
-    wo_description = models.TextField()
-    wr_type = models.CharField(max_length=100, default="Perbaikan")
-    resource = models.CharField(max_length=50)
-    
-    asset_number = models.CharField(max_length=50)
-    asset_department = models.CharField(max_length=50)
-
-    wr_requestor = models.ForeignKey(User, on_delete=models.CASCADE)
-    wr_request_by_date = models.DateField()
-    submitted_at = models.DateTimeField(auto_now_add=True)
-
-    year = models.IntegerField()
-    month = models.IntegerField()
-    week_of_month = models.IntegerField()
-
-    status = models.CharField(max_length=50, default="Pending")
-    urgency = models.CharField(max_length=50, default="Normal")
-
-    def __str__(self):
-        return f"{self.wr_number} - {self.title}"
-
-class WORequesterTwo(models.Model):
-    RESOURCE_CHOICES = [
-        ('MTC', 'Maintenance'),
-        ('CAL', 'Calibration'),
-        ('UTY', 'Utility'),
+    URGENCY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+    ]
+    WR_TYPE_CHOICES = [
+        ('repair', 'Repair'),
+        ('inspection', 'Inspection'),
+        ('corrective', 'Corrective'),
+        ('modification', 'Modification'),
+        ('routine', 'Routine Check'),
+    ]
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('in_review', 'In Review'),
     ]
 
-    DEPARTMENT_CHOICES = [
-        ('EN', 'Engineering'),
-        ('GA', 'General Affairs'),
-        ('PD', 'Production'),
-        ('QA', 'Quality Assurance'),
-        ('QC', 'Quality Control'),
-        ('RD', 'Research & Development'),
-        ('WH', 'Warehouse'),
-    ]
-
-    
-    wr_number = models.BigIntegerField(unique=True)
+    wr_number = models.CharField(max_length=100, unique=True, editable=False)
     title = models.CharField(max_length=255)
-    wo_description = models.TextField()
-    wr_type = models.CharField(max_length=50)  # e.g., 'Perbaikan', 'Kalibrasi'
-    wr_requestor = models.ForeignKey(User, on_delete=models.CASCADE)  # Jika pakai auth
-    wr_request_by_date = models.DateField()
-    year = models.IntegerField()
-    month = models.IntegerField()
-    week_of_month = models.IntegerField()
-    resource = models.CharField(max_length=10, choices=RESOURCE_CHOICES)
-    asset_number = models.CharField(max_length=50)
-    asset_department = models.CharField(max_length=10, choices=DEPARTMENT_CHOICES)
-    urgency = models.CharField(max_length=50, default="Normal")
-    status = models.CharField(max_length=50, default="Pending")
+    description = models.TextField()
+    asset_number = models.CharField(max_length=100)
+    asset_department = models.CharField(max_length=100)
+    resource = models.CharField(max_length=100)
+    urgency = models.CharField(max_length=10, choices=URGENCY_CHOICES)
+    wr_type = models.CharField(max_length=20, choices=WR_TYPE_CHOICES)
+    
+    failure_code = models.CharField(max_length=100, blank=True, null=True)
+    failure_cause = models.TextField(blank=True, null=True)
+    resolution = models.TextField(blank=True, null=True)
+    actual_failure_date = models.DateField(blank=True, null=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='work_requests')
+    created_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.wr_number:
+            self.wr_number = f"WR-{uuid.uuid4().hex[:6].upper()}"
+        if self.status == 'approved' and not self.approved_at:
+            from django.utils import timezone
+            self.approved_at = timezone.now()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.wr_number} - {self.title}"
+        return self.wr_number
+    
+    
+import uuid
+from django.db import models
+from django.contrib.auth.models import User
+
+class EnergyInput(models.Model):
+    ENERGY_TYPES = [
+        ("listrik", "Listrik"),
+        ("air", "Air"),
+        ("cng", "CNG"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="energy_inputs")
+    date = models.DateField()
+    type = models.CharField(max_length=10, choices=ENERGY_TYPES)
+    value = models.DecimalField(max_digits=10, decimal_places=2)
+    meter_number = models.CharField(max_length=100)
+    photo = models.ImageField(upload_to="energy_photos/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.type} - {self.meter_number} - {self.date}"
