@@ -7,21 +7,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-<<<<<<< HEAD
-
-
-from .models import UserProfile, active_work_orders
-from .serializers import UserSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
-
-def get_tokens_for_user(user):
-    refresh = RefreshToken.for_user(user)
-    refresh['role'] = user.role  # Menambahkan role ke payload token
-    return {
-        'refresh': str(refresh),
-        'access': str(refresh.access_token),
-    }
-=======
 from .models import UserProfile, WORequesterTwo
 from .serializers import (
     UserSerializer,
@@ -33,7 +18,6 @@ from .permissions import IsAdminUserProfile, IsRequester
 # ----------------------------
 # 🔐 MeView & Auth
 # ----------------------------
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
@@ -227,63 +211,6 @@ def work_request_list(request):
             "year": row[7], "month": row[8], "week_of_month": row[9]
         } for row in rows
     ]
-<<<<<<< HEAD
-    return JsonResponse(work_request, safe=False)
-
-def energy (request):
-    with connection.cursor() as cursor:
-        cursor.execute("""
-           SELECT 
-                a.date, 
-                a.daily_consumption*100 AS water_consumption, 
-                b.daily_consumption AS cng_consumption, 
-                c.daily_consumption AS electricity_consumption,
-                EXTRACT(YEAR FROM a.date) AS year,
-                EXTRACT(MONTH FROM a.date) AS month,
-                FLOOR((EXTRACT(DAY FROM a.date) - 1) / 7) + 1 AS week_of_month,
-                EXTRACT(DAY FROM a.date) AS day
-            FROM 
-                water_daily a
-            LEFT JOIN 
-                cng_daily b ON a.date = b.date
-            LEFT JOIN 
-                electricity_daily c ON a.date = c.date
-            ORDER BY a.date DESC;
-        """)
-        rows = cursor.fetchall()
-
-    water_data = [
-        {"date": row[0], "water_consumption": row[1], "cng_consumption": row[2], "electricity_consumption": row[3], "year": row[4], "month": row[5], "week_of_month": row[6]}
-        for row in rows
-    ]
-    return JsonResponse(water_data, safe=False)
-
-def energyTrend(request):
-    with connection.cursor() as cursor:
-        cursor.execute("""
-            SELECT  
-                TO_CHAR(a.date, 'FMMonth') AS month_name,
-                round(avg(a.daily_consumption*100)) AS water_monthly, 
-                round(avg(b.daily_consumption)) AS cng_monthly, 
-                round(avg(c.daily_consumption)) AS electricity_monthly,
-				EXTRACT(MONTH from a.date) as month_number
-            FROM 
-                water_daily a
-            LEFT JOIN 
-                cng_daily b ON a.date = b.date
-            LEFT JOIN 
-                electricity_daily c ON a.date = c.date
-			group by month_name, month_number
-            ORDER BY month_number 
-        """)
-        rows = cursor.fetchall()
-
-    energy_trend_data = [
-        {"month_name": row[0], "water_monthly": row[1], "cng_monthly": row[2], "electricity_monthly": row[3], "month_number": row[4]}
-        for row in rows
-    ]
-    return JsonResponse(energy_trend_data, safe=False)
-=======
     return JsonResponse(result, safe=False)
 
 
@@ -323,4 +250,3 @@ class WORequesterListAPIView(APIView):
 
         serializer = WORequesterTwoSerializer(queryset, many=True)
         return Response(serializer.data)
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f

@@ -83,35 +83,6 @@ class WorkRequest(models.Model):
     urgency = models.CharField(max_length=50, default="Normal")
 
     def __str__(self):
-<<<<<<< HEAD
-        return self.title
-
-class energy(models.Model):
-    # Define the fields in your table
-    date = models.DateTimeField(max_length=50)
-    water_consumption = models.CharField(max_length=50)
-    cng_consumption = models.CharField(max_length=50)
-    electricity_consumption = models.CharField(max_length=50)
-    year = models.CharField(max_length=100)
-    month = models.CharField(max_length=100)
-    day = models.CharField(max_length=100)
-    week_of_month = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.date
-    
-class energy_trend(models.Model):
-    # Define the fields in your table
-    month_name = models.CharField(max_length=50)
-    water_monthly = models.CharField(max_length=50)
-    cng_monthly = models.CharField(max_length=50)
-    electricity_monthly = models.CharField(max_length=50)
-    month_number = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.date
-    
-=======
         return f"{self.wr_number} - {self.title}"
 
 class WORequesterTwo(models.Model):
@@ -149,4 +120,3 @@ class WORequesterTwo(models.Model):
 
     def __str__(self):
         return f"{self.wr_number} - {self.title}"
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f

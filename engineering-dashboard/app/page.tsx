@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import supabase from "@/lib/supabase";
+import router from "next/router";
 
 const WorkOrdersPage = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -32,9 +33,6 @@ const WorkOrdersPage = () => {
 
   // Fetching data from API
   useEffect(() => {
-<<<<<<< HEAD
-    fetch("http://localhost:8000/api/work-order-list/")
-=======
     // Check for authentication and redirect if needed
     const access = localStorage.getItem("accessToken");
     const userJson = localStorage.getItem("user");
@@ -62,7 +60,6 @@ const WorkOrdersPage = () => {
 
     // Fetch Active Work Orders from Django API
     fetch("http://localhost:8000/api/active-work-orders/")
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
       .then((response) => response.json())
       .then((data) => {
         setWorkOrders(data);
@@ -336,3 +333,11 @@ const WorkOrdersPage = () => {
 };
 
 export default WorkOrdersPage;
+
+function setCurrentUser(user: any) {
+  throw new Error("Function not implemented.");
+}
+function setRole(userRole: any) {
+  throw new Error("Function not implemented.");
+}
+

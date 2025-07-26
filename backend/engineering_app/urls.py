@@ -1,10 +1,4 @@
 from django.urls import path
-<<<<<<< HEAD
-from .views import MeView, RegisterUserView, DivisionListView
-from . import views
-from .views import MeView, RegisterUserView, DivisionListView, UserListView, UserStatsView
-from rest_framework_simplejwt.views import TokenRefreshView
-=======
 from .views import (
     # 🔐 Auth & User
     MeView,
@@ -23,7 +17,6 @@ from .views import (
     WORequesterListAPIView,
     WORequesterCreateAPIView,
 )
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
 
 urlpatterns = [
     # 🔐 Auth & User
@@ -32,11 +25,6 @@ urlpatterns = [
     path('divisions/', DivisionListView.as_view(), name='division-list'),
     path('users/', UserListView.as_view(), name='user-list'),
     path('users/stats/', UserStatsView.as_view(), name='user-stats'),
-<<<<<<< HEAD
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('energy/', views.energy),
-    path('energy_monthly/', views.energyTrend),
-=======
 
     # 📊 Work Order (Raw SQL)
     path('active-work-orders/', active_work_orders, name='active-work-orders'),
@@ -47,5 +35,4 @@ urlpatterns = [
     # 📝 Work Request (Model-based)
     path('work-requests/', WORequesterListAPIView.as_view(), name='work-request-list'),
     path('work-requests/create/', WORequesterCreateAPIView.as_view(), name='create-work-request'),
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
 ]

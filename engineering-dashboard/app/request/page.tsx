@@ -182,11 +182,7 @@ const handleDepartmentChange = (value: string) => {
       const res = await fetch(`http://localhost:8000/api/work-requests/create/`, {
         method: "POST",
         headers: {
-<<<<<<< HEAD
-          Authorization: `Bearer ${localStorage.getItem("access")}`, // <-- CHANGE THIS LINE
-=======
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
@@ -209,19 +205,6 @@ const handleDepartmentChange = (value: string) => {
 
   
 
-<<<<<<< HEAD
-  // In WorkRequestPage.tsx
-// In WorkRequestPage.tsx
-
-const fetchWorkRequests = async () => {
-  try {
-    setLoading(true);
-    // *** THIS IS THE CRUCIAL CHANGE ***
-    // Change the URL to the list endpoint, typically without '/create'
-    const res = await fetch(`http://localhost:8000/api/work-requests/`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("access")}`,
-=======
   const fetchWorkRequests = async () => {
   const token = localStorage.getItem("accessToken");
   console.log("🔐 Access Token:", token); // 👈 DEBUG
@@ -231,54 +214,22 @@ const fetchWorkRequests = async () => {
     const res = await fetch(`http://localhost:8000/api/work-requests/create/`, {
       headers: {
         Authorization: `Bearer ${token}`,
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
       },
     });
 
     if (!res.ok) {
-<<<<<<< HEAD
-      const errorData = await res.json(); // Attempt to parse JSON for detail message
-      console.error("Error fetching work requests:", res.status, errorData);
-      if (res.status === 401) {
-          alert(errorData.detail || "Sesi Anda telah berakhir. Mohon login kembali.");
-          // Optional: Redirect to login page if desired
-          // window.location.href = '/login';
-      } else {
-          alert(`Gagal memuat daftar request: ${res.status} - ${errorData.detail || 'Unknown error'}`);
-      }
-      setFilteredWorkRequests([]);
-      return;
-=======
       console.error("❌ Fetch error:", res.status);
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
     }
 
     const data = await res.json();
     setFilteredWorkRequests(data);
   } catch (err) {
-<<<<<<< HEAD
-    // This catch block usually handles network issues or when res.json() fails (e.g., HTML response)
-    console.error("Network or JSON parsing error:", err);
-    alert("Terjadi kesalahan saat memuat daftar request (kesalahan jaringan atau format data).");
-=======
     console.error("❗Error:", err);
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
     setFilteredWorkRequests([]);
   } finally {
     setLoading(false);
   }
 };
-<<<<<<< HEAD
-  
-  const displayedRequests = Array.isArray(filteredWorkRequests)
-  ? filteredWorkRequests.filter((req) => {
-      if (role === "admin") return true;
-      return req.wr_requestor.id === currentUser?.id;
-    })
-  : [];
-  
-
-=======
 
 
   const displayedRequests = Array.isArray(filteredWorkRequests)
@@ -289,7 +240,6 @@ const fetchWorkRequests = async () => {
   : [];
   
 
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
   const getStatusColor = (status: string) => {
   switch (status) {
     case "Pending":
@@ -685,8 +635,4 @@ export default WorkRequestPage;
 
 function fetchWorkRequests() {
   throw new Error("Function not implemented.");
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> bd5f93c570d713006d9458112bb727d9a5503c8f
