@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from django.db import connection
 import pandas as pd
 from rest_framework.decorators import api_view
+from django.conf import settings
 
 
 
@@ -802,3 +803,51 @@ class DocumentListView(APIView):
         docs = Document.objects.all().order_by('-uploaded_at')
         serializer = DocumentSerializer(docs, many=True)
         return Response(serializer.data)
+
+
+
+def submit_energy_data(request):
+    data = request.data
+    # Simpan data ke database atau validasi
+    # Kirim email menggunakan send_mail atau service email lain
+
+    send_mail(
+        subject=f"Data {data['type']} telah ditambahkan",
+        message=f"""Data baru telah dikirim:
+Tanggal: {data['date']}
+Konsumsi: {data['value']}
+Meter: {data['meter_number']}
+""",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[data['email_recipient']],
+        fail_silently=False,
+    )
+    return Response({"message": "Email sent and data saved successfully"}, status=200)
+
+from django.core.mail import send_mail
+from rest_framework.response import Response
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def energy_submit(request):
+    try:
+        data = request.data
+        type = data.get("type")
+        date = data.get("date")
+        value = data.get("value")
+        meter_number = data.get("meter_number")
+        email = data.get("email_recipient")
+
+        # ✅ Kirim email saja, tidak ada penyimpanan
+        send_mail(
+            subject=f"Laporan Energi - {type}",
+            message=f"📊 Jenis: {type}\n📅 Tanggal: {date}\n🔢 Nilai: {value}\n🔌 No Meter: {meter_number}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+
+        return Response({"message": "Email sent!"})
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

@@ -1,11 +1,7 @@
-<<<<<<< HEAD
-"use client";
-=======
 // Next.js + Tailwind + Shadcn EnergyPage component (corrected)
 // Struktur sudah dirapikan, fetch disatukan, date parsing aman
 
 "use client"
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
 
 import { useEffect, useState } from "react";
 import {
@@ -30,6 +26,7 @@ import {
   TrendingDown,
   AlertTriangle,
   Camera,
+  Loader2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -40,184 +37,14 @@ import {
   YAxis,
   Tooltip,
   AreaChart,
-<<<<<<< HEAD
   Area,
   Line,
-} from "recharts";
-
-// Dummy data
-const energyData: any[] | undefined = [/* ... */];
-const monthlyData: any[] | undefined = [/* ... */];
-const todayConsumption = { /* ... */ };
-
-// === REFRESH ACCESS TOKEN FUNCTION ===
-export async function refreshAccessToken(): Promise<string> {
-  const refresh = localStorage.getItem("refreshToken");
-
-  if (!refresh || refresh === "undefined") {
-    alert("Sesi login habis. Silakan login ulang.");
-    localStorage.clear();
-    window.location.href = "/login";
-    throw new Error("No valid refresh token found");
-  }
-
-  const res = await fetch("http://localhost:8000/api/token/refresh/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ refresh }),
-  });
-
-  if (!res.ok) {
-    localStorage.clear();
-    window.location.href = "/login";
-    throw new Error("Refresh token expired or invalid");
-  }
-
-  const data = await res.json();
-  localStorage.setItem("accessToken", data.access);
-  return data.access;
-}
-=======
 } from "recharts"
-import { act, JSX, use, useEffect, useState } from "react";
+import { act, JSX, use, } from "react";
 import supabase from "@/lib/supabase";
-
-// const monthlyData = [
-//   { month: "Jan", listrik: 35000, air: 22000, cng: 12000 },
-//   { month: "Feb", listrik: 32000, air: 21000, cng: 11500 },
-//   { month: "Mar", listrik: 38000, air: 24000, cng: 13000 },
-//   { month: "Apr", listrik: 36000, air: 23000, cng: 12500 },
-//   { month: "May", listrik: 40000, air: 25000, cng: 14000 },
-//   { month: "Jun", listrik: 42000, air: 26000, cng: 14500 },
-// ]
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
-
+import { Alert, AlertDescription } from "@/components/ui/alert"
 // === MAIN PAGE ===
 export default function EnergyPage() {
-<<<<<<< HEAD
-  const [preview, setPreview] = useState<string | null>(null);
-
-  const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) setPreview(URL.createObjectURL(file));
-  };
-
-  const handleEnergySubmit = async (type: string) => {
-    const date = (document.getElementById(`${type}-date`) as HTMLInputElement)?.value;
-    const value = (document.getElementById(`${type}-value`) as HTMLInputElement)?.value;
-    const meter = (document.getElementById(`${type}-meter`) as HTMLInputElement)?.value;
-    const photo = (document.getElementById(`${type}-photo`) as HTMLInputElement)?.files?.[0];
-
-    const formData = new FormData();
-    formData.append("type", type);
-    formData.append("date", date);
-    formData.append("value", value);
-    formData.append("meter_number", meter);
-    if (photo) formData.append("photo", photo);
-
-    let token = localStorage.getItem("accessToken");
-
-    const fetchWithToken = async (jwtToken: string) => {
-      return await fetch("http://localhost:8000/api/energy-input/create/", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
-        body: formData,
-      });
-    };
-
-    let res = await fetchWithToken(token!);
-
-    if (res.status === 401) {
-      try {
-        token = await refreshAccessToken();
-        res = await fetchWithToken(token);
-      } catch (error) {
-        console.error("Gagal refresh token:", error);
-        return;
-      }
-    }
-
-    if (!res.ok) {
-  const contentType = res.headers.get("content-type");
-  let errorMessage = "Gagal mengirim data.";
-
-  if (contentType && contentType.includes("application/json")) {
-    const error = await res.json();
-    errorMessage += " " + JSON.stringify(error);
-  } else {
-    const text = await res.text();
-    errorMessage += " Server Error: " + text.slice(0, 200);
-  }
-
-  alert(errorMessage);
-  return;
-}
-
-
-  }; 
-
-  const getUsagePercentage = (current: number, budget: number) =>
-    Math.round((current / budget) * 100);
-
-  const getUsageStatus = (percentage: number) => {
-    if (percentage > 100) return { color: "text-red-600", bg: "bg-red-100", status: "Over Budget" };
-    if (percentage > 80) return { color: "text-yellow-600", bg: "bg-yellow-100", status: "Warning" };
-    return { color: "text-green-600", bg: "bg-green-100", status: "Normal" };
-  };
-
-  const [todayConsumption, setTodayConsumption] = useState({
-  listrik: { current: 0, budget: 0, unit: "kWh" },
-  air: { current: 0, budget: 0, unit: "m³" },
-  cng: { current: 0, budget: 0, unit: "m³" },
-});
-
-
-
-useEffect(() => {
-  const fetchTodayConsumption = async () => {
-    try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("http://localhost:8000/api/energy-today/", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-
-        // Optional: cek bentuk datanya
-        console.log("Data konsumsi hari ini:", data);
-
-        // Jika data dalam bentuk array, kamu reshape dulu
-        if (Array.isArray(data)) {
-          const reshaped = {
-            listrik: data.find((d) => d.type === "listrik") || { current: 0, budget: 0, unit: "kWh" },
-            air: data.find((d) => d.type === "air") || { current: 0, budget: 0, unit: "m³" },
-            cng: data.find((d) => d.type === "cng") || { current: 0, budget: 0, unit: "m³" },
-          };
-          setTodayConsumption(reshaped);
-        } else {
-          setTodayConsumption(data); // jika data sudah proper {listrik: {...}, air: {...}, cng: {...}}
-        }
-      } else {
-        const errorText = await res.text();
-        console.error("Gagal ambil data konsumsi hari ini:", res.status, errorText);
-      }
-    } catch (err) {
-      console.error("Error fetching:", err);
-    }
-  };
-
-  fetchTodayConsumption();
-}, []);
-
-
-=======
   const [energyData, setEnergyData] = useState<any[]>([]);
   const [latestDate, setLatestDate] = useState<Date | null>(null);
   const [filtered, setFiltered] = useState<any[]>([]);
@@ -238,6 +65,8 @@ useEffect(() => {
     }
     return null;
   };
+ 
+
 
   useEffect(() => {
     fetch("http://localhost:8000/api/energy/")
@@ -367,8 +196,74 @@ useEffect(() => {
       </Card>
     );
   };
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
+ //punya standy
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [submitMessage, setSubmitMessage] = useState("")
+    const handleEnergySubmit = async (energyType: string) => {
+      setIsSubmitting(true)
+      setSubmitMessage("")
 
+      try {
+        // Get form data based on energy type
+        const date = (document.getElementById(`${energyType}-date`) as HTMLInputElement)?.value
+        const value = (document.getElementById(`${energyType}-value`) as HTMLInputElement)?.value
+        const meter = (document.getElementById(`${energyType}-meter`) as HTMLInputElement)?.value
+
+        if (!date || !value || !meter) {
+          setSubmitMessage("Semua field harus diisi!")
+          return
+        }
+
+        
+        // In real implementation, this would call your email service
+        const token = localStorage.getItem("accessToken")
+        if (!token) {
+          setSubmitMessage("Token tidak ditemukan. Silakan login ulang.")
+          return
+        }
+
+        const response = await fetch("http://localhost:8000/api/energy/submit/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            type: energyType,
+            date: date,
+            value: Number.parseFloat(value),
+            meter_number: meter,
+            email_recipient: "standybelajar@gmail.com",
+          }),
+        })
+
+        const result = await response.json()
+
+        if (response.ok) {
+          setSubmitMessage(`✅ Data ${energyType} berhasil disimpan dan email telah dikirim!`)
+          ;(document.getElementById(`${energyType}-date`) as HTMLInputElement).value = new Date()
+            .toISOString()
+            .split("T")[0]
+          ;(document.getElementById(`${energyType}-value`) as HTMLInputElement).value = ""
+          ;(document.getElementById(`${energyType}-meter`) as HTMLInputElement).value = ""
+        } else {
+          setSubmitMessage(`❌ Error: ${result.error || "Gagal menyimpan data"}`)
+        }
+
+
+        // Reset form
+        ;(document.getElementById(`${energyType}-date`) as HTMLInputElement).value = new Date()
+          .toISOString()
+          .split("T")[0]
+        ;(document.getElementById(`${energyType}-value`) as HTMLInputElement).value = ""
+        ;(document.getElementById(`${energyType}-meter`) as HTMLInputElement).value = ""
+      } catch (error) {
+        console.error("Submit error:", error)
+        setSubmitMessage("Terjadi kesalahan saat mengirim email")
+      } finally {
+        setIsSubmitting(false)
+      }
+    }
   return (
     <div className="p-6 space-y-6">
       <div className="grid md:grid-cols-3 gap-4">
@@ -566,10 +461,35 @@ useEffect(() => {
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full" onClick={() => handleEnergySubmit("listrik")}>
-  Simpan Data Listrik
-</Button>
 
+                  <Button className="w-full" onClick={() => handleEnergySubmit("listrik")} disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Mengirim Email...
+                      </>
+                    ) : (
+                      "Kirim Email Data Listrik"
+                    )}
+                  </Button>
+
+                  {submitMessage && (
+                    <Alert
+                      className={
+                        submitMessage.includes("berhasil")
+                          ? "border-green-200 bg-green-50"
+                          : "border-red-200 bg-red-50"
+                      }
+                    >
+                      <AlertDescription
+                        className={
+                          submitMessage.includes("berhasil") ? "text-green-800" : "text-red-800"
+                        }
+                      >
+                        {submitMessage}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </CardContent>
               </Card>
 
@@ -640,8 +560,8 @@ useEffect(() => {
                     </div>
                   </div>
                   <Button className="w-full" onClick={() => handleEnergySubmit("cng")}>
-  Simpan Data CNG
-</Button>
+                  Simpan Data CNG
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -690,10 +610,5 @@ useEffect(() => {
           </TabsContent>
                 </Tabs>
     </div>
-<<<<<<< HEAD
-  )
-    }
-=======
   );
 }
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
