@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
+import uuid
 
 class UserProfile(models.Model):
     ROLE_CHOICES = [
@@ -19,7 +20,7 @@ class UserProfile(models.Model):
     full_name = models.CharField(max_length=100)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     division = models.CharField(max_length=50)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
     avatar = models.URLField(blank=True, null=True)
 
     def __str__(self):
@@ -61,7 +62,65 @@ class WorkOrderList(models.Model):
     def __str__(self):
         return self.wo_description
 
+class WorkRequest(models.Model):
+    wr_number = models.IntegerField()
+    title = models.CharField(max_length=100)
+    wo_description = models.CharField(max_length=255)
+    resource = models.CharField(max_length=100)
+    wr_type = models.CharField(max_length=50)
+    wr_request_by_date = models.DateTimeField()
+    wr_requestor = models.CharField(max_length=100)
+    year = models.IntegerField()
+    month = models.IntegerField()
+    week_of_month = models.IntegerField()
 
+    def __str__(self):
+        return self.title
+
+class energy(models.Model):
+    # Define the fields in your table
+    date = models.DateTimeField(max_length=50)
+    water_consumption = models.CharField(max_length=50)
+    cng_consumption = models.CharField(max_length=50)
+    electricity_consumption = models.CharField(max_length=50)
+    year = models.CharField(max_length=100)
+    month = models.CharField(max_length=100)
+    day = models.CharField(max_length=100)
+    week_of_month = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.date
+    
+class energy_trend(models.Model):
+    # Define the fields in your table
+    month_name = models.CharField(max_length=50)
+    water_monthly = models.CharField(max_length=50)
+    cng_monthly = models.CharField(max_length=50)
+    electricity_monthly = models.CharField(max_length=50)
+    month_number = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.date
+    
+class analytics(models.Model):
+    wo_number = models.CharField(max_length=100, unique=True)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+
+    scheduled_start = models.DateTimeField(blank=True, null=True)
+    scheduled_completion = models.DateTimeField(blank=True, null=True)
+    actual_failure_date = models.DateTimeField(blank=True, null=True)
+
+    asset_code = models.CharField(max_length=100, blank=True, null=True)
+    asset_group = models.CharField(max_length=100, blank=True, null=True)
+    department = models.CharField(max_length=100, blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)  # optional
+    updated_at = models.DateTimeField(auto_now=True)      # optional
+
+    def __str__(self):
+        return f"{self.wo_number} - {self.title}"
+    
 class WorkRequest(models.Model):
     URGENCY_CHOICES = [
         ('low', 'Low'),
@@ -111,11 +170,7 @@ class WorkRequest(models.Model):
 
     def __str__(self):
         return self.wr_number
-    
-    
-import uuid
-from django.db import models
-from django.contrib.auth.models import User
+
 
 class EnergyInput(models.Model):
     ENERGY_TYPES = [
@@ -134,4 +189,43 @@ class EnergyInput(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.title
+        return f"{self.type} - {self.meter_number} - {self.date}"
+
+from django.db import models
+from django.contrib.auth.models import User
+
+class Document(models.Model):
+    CATEGORY_CHOICES = [
+        ("SOP", "SOP"),
+        ("Manual", "Manual"),
+        ("Form", "Form"),
+        ("Specification", "Specification"),
+        ("Work Instruction", "Work Instruction"),
+    ]
+
+    DEPARTMENT_CHOICES = [
+        ("Engineering", "Engineering"),
+        ("Quality", "Quality"),
+        ("Utility", "Utility"),
+        ("Safety", "Safety"),
+        ("Production", "Production"),
+    ]
+
+    STATUS_CHOICES = [
+        ("Draft", "Draft"),
+        ("Active", "Active"),
+        ("Archived", "Archived"),
+    ]
+
+    file_name = models.CharField(max_length=255)
+    file_url = models.URLField()  # Supabase public URL
+    version = models.CharField(max_length=20)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    department = models.CharField(max_length=100, choices=DEPARTMENT_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    description = models.TextField(blank=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.file_name} ({self.version})"
