@@ -680,4 +680,125 @@ ORDER BY date ASC;
 
     return JsonResponse(result, safe=False)
 
-  
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from rest_framework.parsers import MultiPartParser, FormParser
+from .models import EnergyInput
+from .serializers import EnergyInputSerializer
+
+class EnergyInputCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = EnergyInputSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserEnergyInputListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        inputs = EnergyInput.objects.filter(user=request.user).order_by('-created_at')
+        serializer = EnergyInputSerializer(inputs, many=True)
+        return Response(serializer.data)
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from .models import EnergyInput
+from .serializers import EnergyInputSerializer
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def latest_energy_inputs(request):
+    latest_inputs = EnergyInput.objects.filter(user=request.user).order_by('-created_at')[:5]
+    serializer = EnergyInputSerializer(latest_inputs, many=True)
+    return Response(serializer.data)
+
+# views.py
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import UserProfile
+
+class UserStatusUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        user_profile = getattr(user, "userprofile", None)
+
+        if not user_profile:
+            return Response({"error": "UserProfile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get("status")
+        if new_status not in ["Active", "Inactive"]:
+            return Response({"error": "Invalid status value."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_profile.status = new_status
+        user_profile.save()
+
+        return Response({"message": f"User status updated to {new_status}."}, status=status.HTTP_200_OK)
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
+
+class ResetUserPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        print("DEBUG Request data:", request.data)  # untuk debug console
+
+        user = get_object_or_404(User, pk=pk)
+        new_password = request.data.get("new_password")
+
+        if not new_password:
+            return Response({"error": "New password is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if len(new_password) < 6:
+            return Response({"error": "Password must be at least 6 characters."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password successfully updated."}, status=status.HTTP_200_OK)
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from .models import Document
+from .serializers import DocumentSerializer
+
+class DocumentUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = DocumentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(uploaded_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class DocumentListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        docs = Document.objects.all().order_by('-uploaded_at')
+        serializer = DocumentSerializer(docs, many=True)
+        return Response(serializer.data)

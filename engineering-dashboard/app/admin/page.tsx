@@ -188,6 +188,35 @@ const systemSettings = {
   sessionTimeout: "8 hours",
 }
 
+const toggleUserStatus = async (userId: number, currentStatus: string) => {
+  try {
+    const token = localStorage.getItem("accessToken");
+    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+
+    const res = await fetch(`http://localhost:8000/api/users/${userId}/status/`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status: newStatus }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to update user status: ${res.status}`);
+    }
+
+    // Refresh user list setelah update
+    const updatedUsers = usersData.map((u) =>
+      u.id === userId ? { ...u, status: newStatus } : u
+    );
+    setUsersData(updatedUsers);
+  } catch (error) {
+    console.error("Error updating user status:", error);
+    alert("Failed to update user status");
+  }
+};
+
 
 
   return (
@@ -346,7 +375,6 @@ const systemSettings = {
         </div>
 
                       <div className="flex items-center gap-2">
-                        <Switch checked={user.status === "Active"} />
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -354,14 +382,14 @@ const systemSettings = {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View Profile</DropdownMenuItem>
-                            <DropdownMenuItem>Edit User</DropdownMenuItem>
                             <DropdownMenuItem>Reset Password</DropdownMenuItem>
-                            <DropdownMenuItem>View Permissions</DropdownMenuItem>
-                            <DropdownMenuItem>Login History</DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
-                              {user.status === "Active" ? "Deactivate" : "Activate"}
-                            </DropdownMenuItem>
+                            <DropdownMenuItem
+  className={user.status === "Active" ? "text-red-600" : "text-green-600"}
+  onClick={() => toggleUserStatus(user.id, user.status)}
+>
+  {user.status === "Active" ? "Deactivate" : "Activate"}
+</DropdownMenuItem>
+
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

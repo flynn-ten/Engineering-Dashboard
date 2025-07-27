@@ -20,7 +20,7 @@ class UserProfile(models.Model):
     full_name = models.CharField(max_length=100)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     division = models.CharField(max_length=50)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
     avatar = models.URLField(blank=True, null=True)
 
     def __str__(self):
@@ -170,3 +170,62 @@ class WorkRequest(models.Model):
 
     def __str__(self):
         return self.wr_number
+
+
+class EnergyInput(models.Model):
+    ENERGY_TYPES = [
+        ("listrik", "Listrik"),
+        ("air", "Air"),
+        ("cng", "CNG"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="energy_inputs")
+    date = models.DateField()
+    type = models.CharField(max_length=10, choices=ENERGY_TYPES)
+    value = models.DecimalField(max_digits=10, decimal_places=2)
+    meter_number = models.CharField(max_length=100)
+    photo = models.ImageField(upload_to="energy_photos/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.type} - {self.meter_number} - {self.date}"
+
+from django.db import models
+from django.contrib.auth.models import User
+
+class Document(models.Model):
+    CATEGORY_CHOICES = [
+        ("SOP", "SOP"),
+        ("Manual", "Manual"),
+        ("Form", "Form"),
+        ("Specification", "Specification"),
+        ("Work Instruction", "Work Instruction"),
+    ]
+
+    DEPARTMENT_CHOICES = [
+        ("Engineering", "Engineering"),
+        ("Quality", "Quality"),
+        ("Utility", "Utility"),
+        ("Safety", "Safety"),
+        ("Production", "Production"),
+    ]
+
+    STATUS_CHOICES = [
+        ("Draft", "Draft"),
+        ("Active", "Active"),
+        ("Archived", "Archived"),
+    ]
+
+    file_name = models.CharField(max_length=255)
+    file_url = models.URLField()  # Supabase public URL
+    version = models.CharField(max_length=20)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    department = models.CharField(max_length=100, choices=DEPARTMENT_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    description = models.TextField(blank=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.file_name} ({self.version})"

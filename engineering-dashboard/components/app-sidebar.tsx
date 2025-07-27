@@ -79,16 +79,13 @@ export function AppSidebar() {
     }
   }, [])
 
-  // ⛔️ Jangan render apapun sebelum mount (hindari hydration error)
   if (!hasMounted) return null
 
   const isAuthPage = pathname === "/login"
   const accessToken = localStorage.getItem("accessToken")
 
-  // 🚫 Sembunyikan sidebar di halaman login atau kalau belum login
   if (isAuthPage || !accessToken) return null
 
-  // ⏳ Loading saat user belum ready
   if (!currentUser) {
     return (
       <div className="p-4 text-sm text-muted-foreground">

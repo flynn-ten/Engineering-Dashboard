@@ -1,28 +1,85 @@
+<<<<<<< HEAD
+"use client";
+=======
 // Next.js + Tailwind + Shadcn EnergyPage component (corrected)
 // Struktur sudah dirapikan, fetch disatukan, date parsing aman
 
 "use client"
+>>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { Zap, Droplets, Fuel, TrendingUp, TrendingDown, AlertTriangle, Camera } from "lucide-react"
+import { useEffect, useState } from "react";
 import {
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  Zap,
+  Droplets,
+  Fuel,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  Camera,
+} from "lucide-react";
+import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  Area,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
   AreaChart,
+<<<<<<< HEAD
+  Area,
+  Line,
+} from "recharts";
+
+// Dummy data
+const energyData: any[] | undefined = [/* ... */];
+const monthlyData: any[] | undefined = [/* ... */];
+const todayConsumption = { /* ... */ };
+
+// === REFRESH ACCESS TOKEN FUNCTION ===
+export async function refreshAccessToken(): Promise<string> {
+  const refresh = localStorage.getItem("refreshToken");
+
+  if (!refresh || refresh === "undefined") {
+    alert("Sesi login habis. Silakan login ulang.");
+    localStorage.clear();
+    window.location.href = "/login";
+    throw new Error("No valid refresh token found");
+  }
+
+  const res = await fetch("http://localhost:8000/api/token/refresh/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ refresh }),
+  });
+
+  if (!res.ok) {
+    localStorage.clear();
+    window.location.href = "/login";
+    throw new Error("Refresh token expired or invalid");
+  }
+
+  const data = await res.json();
+  localStorage.setItem("accessToken", data.access);
+  return data.access;
+}
+=======
 } from "recharts"
 import { act, JSX, use, useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
@@ -35,8 +92,132 @@ import supabase from "@/lib/supabase";
 //   { month: "May", listrik: 40000, air: 25000, cng: 14000 },
 //   { month: "Jun", listrik: 42000, air: 26000, cng: 14500 },
 // ]
+>>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
 
+// === MAIN PAGE ===
 export default function EnergyPage() {
+<<<<<<< HEAD
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setPreview(URL.createObjectURL(file));
+  };
+
+  const handleEnergySubmit = async (type: string) => {
+    const date = (document.getElementById(`${type}-date`) as HTMLInputElement)?.value;
+    const value = (document.getElementById(`${type}-value`) as HTMLInputElement)?.value;
+    const meter = (document.getElementById(`${type}-meter`) as HTMLInputElement)?.value;
+    const photo = (document.getElementById(`${type}-photo`) as HTMLInputElement)?.files?.[0];
+
+    const formData = new FormData();
+    formData.append("type", type);
+    formData.append("date", date);
+    formData.append("value", value);
+    formData.append("meter_number", meter);
+    if (photo) formData.append("photo", photo);
+
+    let token = localStorage.getItem("accessToken");
+
+    const fetchWithToken = async (jwtToken: string) => {
+      return await fetch("http://localhost:8000/api/energy-input/create/", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+        body: formData,
+      });
+    };
+
+    let res = await fetchWithToken(token!);
+
+    if (res.status === 401) {
+      try {
+        token = await refreshAccessToken();
+        res = await fetchWithToken(token);
+      } catch (error) {
+        console.error("Gagal refresh token:", error);
+        return;
+      }
+    }
+
+    if (!res.ok) {
+  const contentType = res.headers.get("content-type");
+  let errorMessage = "Gagal mengirim data.";
+
+  if (contentType && contentType.includes("application/json")) {
+    const error = await res.json();
+    errorMessage += " " + JSON.stringify(error);
+  } else {
+    const text = await res.text();
+    errorMessage += " Server Error: " + text.slice(0, 200);
+  }
+
+  alert(errorMessage);
+  return;
+}
+
+
+  }; 
+
+  const getUsagePercentage = (current: number, budget: number) =>
+    Math.round((current / budget) * 100);
+
+  const getUsageStatus = (percentage: number) => {
+    if (percentage > 100) return { color: "text-red-600", bg: "bg-red-100", status: "Over Budget" };
+    if (percentage > 80) return { color: "text-yellow-600", bg: "bg-yellow-100", status: "Warning" };
+    return { color: "text-green-600", bg: "bg-green-100", status: "Normal" };
+  };
+
+  const [todayConsumption, setTodayConsumption] = useState({
+  listrik: { current: 0, budget: 0, unit: "kWh" },
+  air: { current: 0, budget: 0, unit: "m³" },
+  cng: { current: 0, budget: 0, unit: "m³" },
+});
+
+
+
+useEffect(() => {
+  const fetchTodayConsumption = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("http://localhost:8000/api/energy-today/", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+
+        // Optional: cek bentuk datanya
+        console.log("Data konsumsi hari ini:", data);
+
+        // Jika data dalam bentuk array, kamu reshape dulu
+        if (Array.isArray(data)) {
+          const reshaped = {
+            listrik: data.find((d) => d.type === "listrik") || { current: 0, budget: 0, unit: "kWh" },
+            air: data.find((d) => d.type === "air") || { current: 0, budget: 0, unit: "m³" },
+            cng: data.find((d) => d.type === "cng") || { current: 0, budget: 0, unit: "m³" },
+          };
+          setTodayConsumption(reshaped);
+        } else {
+          setTodayConsumption(data); // jika data sudah proper {listrik: {...}, air: {...}, cng: {...}}
+        }
+      } else {
+        const errorText = await res.text();
+        console.error("Gagal ambil data konsumsi hari ini:", res.status, errorText);
+      }
+    } catch (err) {
+      console.error("Error fetching:", err);
+    }
+  };
+
+  fetchTodayConsumption();
+}, []);
+
+
+=======
   const [energyData, setEnergyData] = useState<any[]>([]);
   const [latestDate, setLatestDate] = useState<Date | null>(null);
   const [filtered, setFiltered] = useState<any[]>([]);
@@ -186,6 +367,7 @@ useEffect(() => {
       </Card>
     );
   };
+>>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
 
   return (
     <div className="p-6 space-y-6">
@@ -384,7 +566,10 @@ useEffect(() => {
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full">Simpan Data Listrik</Button>
+                  <Button className="w-full" onClick={() => handleEnergySubmit("listrik")}>
+  Simpan Data Listrik
+</Button>
+
                 </CardContent>
               </Card>
 
@@ -418,7 +603,9 @@ useEffect(() => {
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full">Simpan Data Air</Button>
+                  <Button className="w-full" onClick={() => handleEnergySubmit("air")}>
+  Simpan Data Air
+</Button>
                 </CardContent>
               </Card>
 
@@ -452,7 +639,9 @@ useEffect(() => {
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full">Simpan Data CNG</Button>
+                  <Button className="w-full" onClick={() => handleEnergySubmit("cng")}>
+  Simpan Data CNG
+</Button>
                 </CardContent>
               </Card>
             </div>
@@ -501,5 +690,10 @@ useEffect(() => {
           </TabsContent>
                 </Tabs>
     </div>
+<<<<<<< HEAD
+  )
+    }
+=======
   );
 }
+>>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
