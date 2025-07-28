@@ -1,44 +1,126 @@
+from django.utils import timezone  # Tambahan dari baru
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import AllowAny
-from .permissions import IsAdminUserProfile
-from .serializers import UserProfileWithUserSerializer
-from .serializers import UserProfileSerializer
+from rest_framework import status, permissions
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import api_view, permission_classes
 from django.http import JsonResponse
+from django.core.mail import send_mail
+from django.conf import settings
 from django.db import connection
 import pandas as pd
-from rest_framework.decorators import api_view
-from django.conf import settings
 
+from .permissions import IsAdminUserProfile
+from .models import (
+    UserProfile, WorkRequest, WorkOrder,
+    EnergyInput, Document,
+    active_work_orders, analytics
+)
+from .serializers import (
+    UserProfileWithUserSerializer, UserProfileSerializer, UserSerializer,
+    WorkRequestSerializer, WorkOrderSerializer,
+    WorkOrderUpdateSerializer, WorkOrderStatusSerializer,
+    EnergyInputSerializer, DocumentSerializer,
+    CustomTokenObtainPairSerializer
+)
+from rest_framework.generics import RetrieveUpdateAPIView, ListCreateAPIView, UpdateAPIView
+from rest_framework_simplejwt.views import TokenObtainPairView
 
+# Semua class-based views dari versi terbaru disatukan
+class WorkOrderDetailAPIView(RetrieveUpdateAPIView):
+    queryset = WorkOrder.objects.all()
+    serializer_class = WorkOrderUpdateSerializer
+    permission_classes = [IsAuthenticated]
 
-from .models import UserProfile, active_work_orders, analytics
-from .serializers import UserSerializer
-from .serializers import WorkRequestSerializer
+class WorkOrderListCreateAPIView(ListCreateAPIView):
+    queryset = WorkOrder.objects.all()
+    serializer_class = WorkOrderSerializer
+    permission_classes = [IsAuthenticated]
+
+class WorkOrderUpdateAPIView(UpdateAPIView):
+    queryset = WorkOrder.objects.all()
+    serializer_class = WorkOrderUpdateSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = "wo_number"
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_update(serializer)
+        return Response(serializer.data)
+
+class WorkOrderStatusUpdateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, wo_number):
+        try:
+            wo = WorkOrder.objects.get(wo_number=wo_number)
+        except WorkOrder.DoesNotExist:
+            return Response({"error": "Work Order not found"}, status=404)
+
+        serializer = WorkOrderStatusSerializer(wo, data=request.data, partial=True)
+        if serializer.is_valid():
+            new_status = serializer.validated_data.get("wo_status")
+            now = timezone.now()
+
+            if new_status == "released" and not wo.wo_start_date:
+                wo.wo_start_date = now
+
+            if new_status == "completed" and not wo.wo_completion_date:
+                wo.wo_completion_date = now
+                if wo.wo_start_date:
+                    wo.actual_duration = now - wo.wo_start_date
+
+            wo.wo_status = new_status
+            wo.save()
+            return Response(WorkOrderStatusSerializer(wo).data)
+
+        return Response(serializer.errors, status=400)
 
 class WorkRequestStatusUpdateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
-        try:
-            wr = WorkRequest.objects.get(pk=pk)
-        except WorkRequest.DoesNotExist:
-            return Response({"error": "Work Request not found."}, status=404)
-
+        wr = get_object_or_404(WorkRequest, pk=pk)
         new_status = request.data.get("status")
+
         if new_status not in ["approved", "rejected"]:
             return Response({"error": "Invalid status value"}, status=400)
 
         wr.status = new_status
+
         if new_status == "approved":
-            from django.utils import timezone
             wr.approved_at = timezone.now()
+
+            # Safe check agar tidak duplikat
+            if not WorkOrder.objects.filter(wr_number=wr.wr_number).exists():
+                try:
+                    WorkOrder.objects.create(
+                        wr_number=wr.wr_number,
+                        title=wr.title,
+                        description=wr.description,
+                        urgency=wr.urgency,
+                        wo_type=wr.wr_type,
+                        requester=wr.requested_by,  # pastikan ini User
+                        asset_number=wr.asset_number,
+                        asset_department=wr.asset_department,
+                        actual_failure_date=wr.actual_failure_date,
+                        completion_by_date=wr.completion_by_date,
+                        resource=wr.resource,
+                        work_request=wr,
+                    )
+                except Exception as e:
+                    return Response({"error": f"Failed to create WO: {str(e)}"}, status=500)
 
         wr.save()
         return Response({"message": f"Status updated to {new_status}"}, status=200)
+
 
 class WorkRequestCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -46,9 +128,12 @@ class WorkRequestCreateAPIView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = WorkRequestSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()  # requested_by sudah diset di serializer
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response(serializer.data, status=201)
+
+        # ✅ Print error ke console
+        print("❌ Serializer Errors:", serializer.errors)
+        return Response(serializer.errors, status=400)
 
     def get(self, request):
         user = request.user
