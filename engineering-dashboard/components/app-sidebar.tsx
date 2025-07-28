@@ -41,11 +41,11 @@ import {
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: Home, roles: ["admin", "engineer", "utility", "requester", "qac"] },
-  { title: "Work Orders", url: "/wo", icon: Wrench, roles: ["admin", "engineer"]},
-  { title: "Requests", url: "/request", icon: ClipboardList, roles: ["admin", "requester"] },
+  { title: "Work Orders", url: "/wo", icon: Wrench, roles: ["admin", "engineer"], badge: "12" },
+  { title: "Requests", url: "/request", icon: ClipboardList, roles: ["admin", "requester"], badge: "5" },
   { title: "Energy Monitor", url: "/energy", icon: Zap, roles: ["admin", "utility"] },
   { title: "Analytics", url: "/analytics", icon: BarChart3, roles: ["admin"] },
-  { title: "Compliance", url: "/compliance", icon: Shield, roles: ["admin", "qac"]},
+  { title: "Compliance", url: "/compliance", icon: Shield, roles: ["admin", "qac"], badge: "3" },
   { title: "Files", url: "/files", icon: FileText, roles: ["admin", "engineer", "utility", "requester", "qac"] },
   { title: "Admin", url: "/admin", icon: Settings, roles: ["admin"] },
 ]

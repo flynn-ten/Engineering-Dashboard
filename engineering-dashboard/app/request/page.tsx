@@ -22,22 +22,45 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, ChangeEvent } from "react";
+
+interface Asset {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface WorkRequest {
+  wr_number: string;
+  title: string;
+  wr_request_by_date: string;
+  wr_type: string;
+  resource: string;
+  wo_description: string;
+  wr_requestor: string;
+  year: number;
+  month: number;
+  week_of_month: number;
+  status: string;
+  urgency: string;
+  workOrderId?: string;
+  rejectionReason?: string;
+}
 
 const WorkRequestPage = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [wr_number, setWr_number] = useState(null);
+  const [wr_number, setWr_number] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [wo_description, setWo_description] = useState("");
   const [wr_type, setWr_type] = useState("");
   const [wr_requestor, setWr_requestor] = useState("");
   const [wr_request_by_date, setWr_request_by_date] = useState("");
-  const [year, setYear] = useState(null);
-  const [month, setMonth] = useState(null);
+  const [year, setYear] = useState<number | null>(null);
+  const [month, setMonth] = useState<number | null>(null);
   const [week_of_month, setWeek_of_month] = useState<number | null>(null);
   const [resource, setResource] = useState("");
-  const [workRequests, setWorkRequests] = useState<any[]>([]);
-  const [filteredWorkRequests, setFilteredWorkRequests] = useState<any[]>([]);
+  const [workRequests, setWorkRequests] = useState<WorkRequest[]>([]);
+  const [filteredWorkRequests, setFilteredWorkRequests] = useState<WorkRequest[]>([]);
 
   // Form state for creating new work requests
   const [form, setForm] = useState({
@@ -55,9 +78,9 @@ const WorkRequestPage = () => {
   });
 
   const [selectedDepartment, setSelectedDepartment] = useState("");
-  const [availableAssets, setAvailableAssets] = useState([]);
+  const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
 
-  const assetsByDepartment = {
+  const assetsByDepartment: Record<string, Asset[]> = {
     EN: [
       { id: "EN-001", name: "Generator Utama", description: "Generator 500KVA" },
       { id: "EN-002", name: "Pompa Air Utama", description: "Pompa Centrifugal 100HP" },
@@ -105,15 +128,15 @@ const WorkRequestPage = () => {
       { id: "WH-004", name: "Conveyor System", description: "Warehouse Conveyor" },
       { id: "WH-005", name: "Barcode Scanner", description: "Wireless Barcode Scanner" },
     ],
-  }
+  };
 
   // Form handlers
-  const handleFormChange = (e) => {
+  const handleFormChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleDepartmentChange = (val) => {
+  const handleDepartmentChange = (val: string) => {
     setSelectedDepartment(val);
     setAvailableAssets(assetsByDepartment[val] || []);
     setForm((prev) => ({ ...prev, asset_department: val, asset_number: "" }));
@@ -158,7 +181,7 @@ const WorkRequestPage = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: Bearer ${token},
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(form),
       });
@@ -170,7 +193,7 @@ const WorkRequestPage = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: Bearer ${token},
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(form),
         });
@@ -198,7 +221,7 @@ const WorkRequestPage = () => {
   const fetchWorkRequests = () => {
     fetch("http://localhost:8000/api/work-request/")
       .then((response) => response.json())
-      .then((data) => {
+      .then((data: WorkRequest[]) => {
         setWorkRequests(data);
         setIsLoading(false);
         if (data.length > 0) {
@@ -232,7 +255,7 @@ const WorkRequestPage = () => {
       
       const res = await fetch("http://localhost:8000/api/me/", {
         headers: {
-          Authorization: Bearer ${token},
+          Authorization: `Bearer ${token}`,
         },
       });
       if (res.status === 401) {
@@ -246,13 +269,6 @@ const WorkRequestPage = () => {
     };
     checkAccessToken();
   }, []);
-
-  // Update available assets when department changes (original logic)
-  const handleDepartmentChangeOriginal = (department) => {
-    setSelectedDepartment(department)
-    setSelectedAsset("") // Reset asset selection
-    setAvailableAssets(assetsByDepartment[department] || [])
-  }
 
   // Filter work orders based on week selection
   useEffect(() => {
@@ -438,7 +454,7 @@ const WorkRequestPage = () => {
                             <span>Requester: {req.wr_requestor}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            {<Calendar className="h-4 w-4 text-muted-foreground" />}
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
                             <span>Date: {req.wr_request_by_date} </span>
                           </div>
                           <div className="flex items-center gap-2">
