@@ -10,75 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-<<<<<<< HEAD
-import supabase from "@/lib/supabase";
-const workingRequests = [
-  {
-    id: "REQ-2024-006",
-    title: "Perbaikan Sistem Ventilasi Ruang Server",
-    description: "Sistem ventilasi ruang server tidak berfungsi optimal, suhu ruangan meningkat",
-    category: "UTY",
-    requester: "IT Department",
-    requestDate: "2024-01-16",
-    estimatedCost: 5000000,
-    urgency: "Urgent",
-    location: "Server Room - Lantai 3",
-  },
-  {
-    id: "REQ-2024-007",
-    title: "Kalibrasi Ulang Pressure Gauge",
-    description: "Pressure gauge di line produksi menunjukkan pembacaan yang tidak akurat",
-    category: "CAL",
-    requester: "Production Team",
-    requestDate: "2024-01-15",
-    estimatedCost: 1200000,
-    urgency: "Normal",
-    location: "Production Line 2",
-  },
-  {
-    id: "REQ-2024-008",
-    title: "Maintenance Conveyor Belt Motor",
-    description: "Motor conveyor belt mengeluarkan suara tidak normal dan getaran berlebih",
-    category: "MTC",
-    requester: "Production Supervisor",
-    requestDate: "2024-01-14",
-    estimatedCost: 3500000,
-    urgency: "Urgent",
-    location: "Production Area A",
-  },
-  {
-    id: "REQ-2024-009",
-    title: "Penggantian Lampu Emergency Exit",
-    description: "Beberapa lampu emergency exit tidak menyala dan perlu diganti",
-    category: "UTY",
-    requester: "Safety Officer",
-    requestDate: "2024-01-13",
-    estimatedCost: 800000,
-    urgency: "Normal",
-    location: "Seluruh Area Pabrik",
-  },
-  {
-    id: "REQ-2024-010",
-    title: "Inspeksi dan Servis Crane Overhead",
-    description: "Crane overhead perlu inspeksi rutin dan servis sesuai jadwal maintenance",
-    category: "MTC",
-    requester: "Warehouse Manager",
-    requestDate: "2024-01-12",
-    estimatedCost: 4200000,
-    urgency: "Normal",
-    location: "Warehouse - Area Loading",
-  },
-]
-  const handleApprove = (requestId: string) => {
-    alert('Request ${requestId} approved! Work Order will be created.')
-  }
-
-  const handleCancel = (requestId: string) => {
-    alert('Request ${requestId} has been cancelled.')
-  }
-=======
 import { Alert, AlertDescription } from "@/components/ui/alert";
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
 
 const WorkOrdersPage = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -485,10 +417,7 @@ const WorkOrdersPage = () => {
               </Card>
             ))}
           </TabsContent>
-<<<<<<< HEAD
-=======
           
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
           <TabsContent value="requests" className="space-y-4">
             {/* Filter & Pencarian untuk Requests */}
             <Card>
@@ -531,75 +460,42 @@ const WorkOrdersPage = () => {
 
             {/* Working Requests List */}
             <div className="space-y-4">
-<<<<<<< HEAD
-              {workingRequests.length === 0 ? (
-=======
               {isLoadingRequests ? (
                 <div className="text-center py-8">Loading work requests...</div>
               ) : workingRequests.length === 0 ? (
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
                 <Alert>
                   <AlertDescription>Tidak ada working request yang menunggu persetujuan saat ini.</AlertDescription>
                 </Alert>
               ) : (
                 <div className="space-y-4">
                   {workingRequests.map((request) => (
-<<<<<<< HEAD
-                    <Card key={request.id}>
-=======
                     <Card key={request.wr_number || request.id}>
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between">
                           <div className="space-y-3 flex-1">
                             <div className="flex items-center gap-3">
                               <h3 className="text-lg font-semibold">{request.title}</h3>
-<<<<<<< HEAD
-                              <Badge variant="outline">{request.id}</Badge>
-                              <Badge className={getCategoryColor(request.category)}>{request.category}</Badge>
-=======
                               <Badge variant="outline">{request.wr_number || request.id}</Badge>
                               <Badge className={getCategoryColor(request.resource || request.category)}>
                                 {request.resource || request.category}
                               </Badge>
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
                               <Badge variant="outline" className="bg-blue-50 text-blue-700">
                                 {request.urgency}
                               </Badge>
                             </div>
 
-<<<<<<< HEAD
-                            <p className="text-sm text-muted-foreground">{request.description}</p>
-=======
                             <p className="text-sm text-muted-foreground">
                               {request.wo_description || request.description}
                             </p>
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                               <div className="flex items-center gap-2">
                                 <User className="h-4 w-4 text-muted-foreground" />
-<<<<<<< HEAD
-                                <span>Requester: {request.requester}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span>Date: {request.requestDate}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">
-                                  Cost: Rp {request.estimatedCost.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">Location: {request.location}</span>
-=======
                                 <span>Requester: {request.wr_requestor || request.requester}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <span>Date: {request.wr_request_by_date || request.requestDate}</span>
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
                               </div>
                             </div>
                           </div>
@@ -608,24 +504,16 @@ const WorkOrdersPage = () => {
                             <Button
                               size="sm"
                               className="bg-green-600 hover:bg-green-700"
-<<<<<<< HEAD
-                              onClick={() => handleApprove(request.id)}
-=======
                               onClick={() => handleApprove(request.wr_number || request.id)}
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
                               Approve
                             </Button>
-<<<<<<< HEAD
-                            <Button size="sm" variant="destructive" onClick={() => handleCancel(request.id)}>
-=======
                             <Button 
                               size="sm" 
                               variant="destructive" 
                               onClick={() => handleCancel(request.wr_number || request.id)}
                             >
->>>>>>> de5be3abfa57b5be00a52fd6c017b0bb12ecd3e7
                               <XCircle className="h-4 w-4 mr-1" />
                               Cancel
                             </Button>

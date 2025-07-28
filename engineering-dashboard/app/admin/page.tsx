@@ -60,11 +60,38 @@ export default function AdminPage() {
         return "outline"
     }
   }
+  
+const resetUserPassword = async (id: number, newPassword: string) => {
+  const access = localStorage.getItem("accessToken")
+
+  try {
+    const res = await fetch(`http://localhost:8000/api/users/${id}/reset-password/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${access}`,
+      },
+      body: JSON.stringify({ new_password: newPassword }),
+    })
+
+    if (res.ok) {
+  alert("Password reset successfully!")
+} else {
+  const errorData = await res.json(); // Tambahkan ini
+  console.error("Reset failed:", errorData); // Log error detail dari backend
+  alert("Failed to reset password: " + (errorData.error || "Unknown error"))
+}
+
+  } catch (error) {
+    console.error("Error resetting password:", error)
+  }
+}
+
 
 useEffect(() => {
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem("access");
+      const token = localStorage.getItem("accessToken");
 
       let res = await fetch("http://localhost:8000/api/users/", {
         headers: {
@@ -87,14 +114,14 @@ useEffect(() => {
 
         if (!refreshRes.ok) {
           console.error("Failed to refresh token, logging out...");
-          localStorage.removeItem("access");
+          localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           window.location.replace("/login");
           throw new Error("Refresh token invalid, please login again");
         }
 
         const refreshData = await refreshRes.json();
-        localStorage.setItem("access", refreshData.access);
+        localStorage.setItem("accessToken", refreshData.access);
 
         // Retry fetching users with the new token
         res = await fetch("http://localhost:8000/api/users/", {
@@ -382,7 +409,14 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Reset Password</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+  const newPass = window.prompt("Enter new password for this user:")
+  if (newPass) resetUserPassword(user.id, newPass)
+}}
+>
+  Reset Password
+</DropdownMenuItem>
+
                             <DropdownMenuItem
   className={user.status === "Active" ? "text-red-600" : "text-green-600"}
   onClick={() => toggleUserStatus(user.id, user.status)}

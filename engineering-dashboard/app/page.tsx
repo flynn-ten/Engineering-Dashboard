@@ -13,29 +13,6 @@ import {
 } from "recharts";
 import { RoleIndicator } from "@/components/role-indicator";
 
-// ✅ Dummy data tetap aman
-// const energyData = [
-//   { name: "Sen", listrik: 1200, air: 800, cng: 400 },
-//   { name: "Sel", listrik: 1100, air: 750, cng: 380 },
-//   { name: "Rab", listrik: 1300, air: 820, cng: 420 },
-//   { name: "Kam", listrik: 1250, air: 790, cng: 410 },
-//   { name: "Jum", listrik: 1400, air: 850, cng: 450 },
-//   { name: "Sab", listrik: 900, air: 600, cng: 300 },
-//   { name: "Min", listrik: 800, air: 550, cng: 280 },
-// ];
-
-
-// const mttrData = [
-//   { month: "Jan", mttr: 4.2, mtbf: 120 },
-//   { month: "Feb", mttr: 3.8, mtbf: 135 },
-//   { month: "Mar", mttr: 4.5, mtbf: 110 },
-//   { month: "Apr", mttr: 3.2, mtbf: 145 },
-//   { month: "Mei", mttr: 3.9, mtbf: 125 },
-//   { month: "Jun", mttr: 3.1, mtbf: 150 },
-// ];
-
-
-
 export default function Dashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
