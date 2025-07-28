@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -59,7 +60,10 @@ const WorkRequestPage = () => {
 };
 
 
-
+  const totalCount = filteredWorkRequests.length;
+  const pendingCount = filteredWorkRequests.filter((req) => req.status === "pending").length;
+  const approvedCount = filteredWorkRequests.filter((req) => req.status === "approved").length;
+  const rejectedCount = filteredWorkRequests.filter((req) => req.status === "rejected").length;
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [availableAssets, setAvailableAssets] = useState([]);
 
@@ -422,7 +426,7 @@ const WorkRequestPage = () => {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredWorkRequests.length}</div>
+              <div className="text-2xl font-bold">{totalCount}</div>
             </CardContent>
           </Card>
 
@@ -432,9 +436,7 @@ const WorkRequestPage = () => {
               <Clock className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {filteredWorkRequests.filter((req) => req.status === "Pending" || req.status === "In Review").length}
-              </div>
+              <div className="text-2xl font-bold text-yellow-600">{pendingCount}</div>
             </CardContent>
           </Card>
 
@@ -444,9 +446,7 @@ const WorkRequestPage = () => {
               <CheckCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {filteredWorkRequests.filter((req) => req.status === "Approved").length}
-              </div>
+              <div className="text-2xl font-bold text-green-600">{approvedCount}</div>
             </CardContent>
           </Card>
 
@@ -456,9 +456,7 @@ const WorkRequestPage = () => {
               <XCircle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {filteredWorkRequests.filter((req) => req.status === "Rejected").length}
-              </div>
+              <div className="text-2xl font-bold text-red-600">{rejectedCount}</div>
             </CardContent>
           </Card>
         </div>
