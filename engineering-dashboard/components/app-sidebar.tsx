@@ -66,7 +66,7 @@ export function AppSidebar() {
   const [currentUser, setCurrentUser] = useState<any>(null)
 
   useEffect(() => {
-    const access = localStorage.getItem("access")
+    const access = localStorage.getItem("accessToken")
     const userJson = localStorage.getItem("user")
 
     if (access && userJson && userJson !== "undefined") {
@@ -79,16 +79,13 @@ export function AppSidebar() {
     }
   }, [])
 
-  // ⛔️ Jangan render apapun sebelum mount (hindari hydration error)
   if (!hasMounted) return null
 
   const isAuthPage = pathname === "/login"
-  const accessToken = localStorage.getItem("access")
+  const accessToken = localStorage.getItem("accessToken")
 
-  // 🚫 Sembunyikan sidebar di halaman login atau kalau belum login
   if (isAuthPage || !accessToken) return null
 
-  // ⏳ Loading saat user belum ready
   if (!currentUser) {
     return (
       <div className="p-4 text-sm text-muted-foreground">

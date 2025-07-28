@@ -3,44 +3,52 @@
 
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import { Zap, Droplets, Fuel, TrendingUp, TrendingDown, AlertTriangle, Camera } from "lucide-react"
+import { JSX, useEffect, useState } from "react";
 import {
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  Zap,
+  Droplets,
+  Fuel,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  Camera,
+} from "lucide-react";
+import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  Area,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
   AreaChart,
+  Area,
+  Line,
 } from "recharts"
-import { act, JSX, use, useEffect, useState } from "react";
-import supabase from "@/lib/supabase";
 
-const monthlyData = [
-  { month: "Jan", listrik: 35000, air: 22000, cng: 12000 },
-  { month: "Feb", listrik: 32000, air: 21000, cng: 11500 },
-  { month: "Mar", listrik: 38000, air: 24000, cng: 13000 },
-  { month: "Apr", listrik: 36000, air: 23000, cng: 12500 },
-  { month: "May", listrik: 40000, air: 25000, cng: 14000 },
-  { month: "Jun", listrik: 42000, air: 26000, cng: 14500 },
-]
 
+// === MAIN PAGE ===
 export default function EnergyPage() {
   const [energyData, setEnergyData] = useState<any[]>([]);
   const [latestDate, setLatestDate] = useState<Date | null>(null);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [filtered6Months, setFiltered6Months] = useState<any[]>([]);
+  const [latestEntries, setLatestEntries] = useState<any[]>([]);
+
 
   const [electricity, setElectricity] = useState(0);
   const [air, setAir] = useState(0);
@@ -187,6 +195,115 @@ useEffect(() => {
     );
   };
 
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem("refresh");
+  if (!refreshToken) return null;
+
+  const res = await fetch("http://localhost:8000/api/token/refresh/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh: refreshToken }),
+  });
+
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  localStorage.setItem("accessToken", data.access);
+  return data.access;
+}
+
+const handleEnergySubmit = async (type: string) => {
+  const date = (document.getElementById(`${type}-date`) as HTMLInputElement)?.value;
+  const value = (document.getElementById(`${type}-value`) as HTMLInputElement)?.value;
+  const meterNumber = (document.getElementById(`${type}-meter`) as HTMLInputElement)?.value;
+  const photoInput = document.getElementById(`${type}-photo`) as HTMLInputElement;
+  const photo = photoInput?.files?.[0];
+
+  const formData = new FormData();
+  formData.append("date", date);
+  formData.append("type", type);
+  formData.append("value", value);
+  formData.append("meter_number", meterNumber);
+  if (photo) formData.append("photo", photo);
+
+  const submitData = async (token: string) => {
+    const res = await fetch("http://localhost:8000/api/energy-input/create/", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (res.status === 401) throw new Error("Unauthorized");
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Server error response:", errorText);
+      throw new Error("Gagal simpan data");
+    }
+
+    alert("Berhasil simpan data!");
+    photoInput.value = "";
+  };
+
+  try {
+    const token = localStorage.getItem("accessToken");
+    if (!token) throw new Error("Token kosong");
+    await submitData(token);
+  } catch (err) {
+    console.warn("Token expired. Trying to refresh...");
+    const newToken = await refreshAccessToken();
+    if (!newToken) {
+      alert("Sesi login habis. Silakan login ulang.");
+      return;
+    }
+    try {
+      await submitData(newToken);
+    } catch (e) {
+      alert("Gagal simpan data setelah refresh token.");
+    }
+  }
+};
+
+
+
+useEffect(() => {
+  const fetchLatestData = async () => {
+    let token = localStorage.getItem("accessToken");
+
+    const fetchWithToken = async (tokenToUse: string) => {
+      const res = await fetch("http://localhost:8000/api/energy-input/my/", {
+        headers: {
+          Authorization: `Bearer ${tokenToUse}`,
+        },
+      });
+      return res;
+    };
+
+    let res = await fetchWithToken(token!);
+
+    if (res.status === 401) {
+      const newToken = await refreshAccessToken();
+      if (!newToken) {
+        alert("Sesi login habis. Silakan login ulang.");
+        return;
+      }
+      res = await fetchWithToken(newToken);
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      setLatestEntries(data.slice(0, 5)); // Ambil 5 entri terakhir
+    } else {
+      console.error("Gagal fetch data energi terbaru");
+    }
+  };
+
+  fetchLatestData();
+}, []);
+
+
+
   return (
     <div className="p-6 space-y-6">
       <div className="grid md:grid-cols-3 gap-4">
@@ -236,7 +353,7 @@ useEffect(() => {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-sm">Konsumsi Hari Ini</span>
-                    <span className="font-medium">1,600 kWh</span>
+                    <span className="font-medium">{electricity}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Budget Harian</span>
@@ -244,7 +361,7 @@ useEffect(() => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Selisih</span>
-                    <span className="font-medium text-red-600">+100 kWh</span>
+                    <span className="font-medium text-red-600">{electricity - 1500} kWh</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm">Rata-rata 7 hari</span>
@@ -384,7 +501,10 @@ useEffect(() => {
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full">Simpan Data Listrik</Button>
+                  <Button className="w-full" onClick={() => handleEnergySubmit("listrik")}>
+  Simpan Data Listrik
+</Button>
+
                 </CardContent>
               </Card>
 
@@ -418,7 +538,9 @@ useEffect(() => {
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full">Simpan Data Air</Button>
+                  <Button className="w-full" onClick={() => handleEnergySubmit("air")}>
+  Simpan Data Air
+</Button>
                 </CardContent>
               </Card>
 
@@ -452,52 +574,52 @@ useEffect(() => {
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full">Simpan Data CNG</Button>
+                  <Button className="w-full" onClick={() => handleEnergySubmit("cng")}>
+  Simpan Data CNG
+</Button>
                 </CardContent>
               </Card>
             </div>
 
             {/* Recent Entries */}
             <Card>
-              <CardHeader>
-                <CardTitle>Data Terbaru</CardTitle>
-                <CardDescription>5 entri data terakhir</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { type: "Listrik", value: "1,600 kWh", date: "2024-01-07", time: "08:30", user: "Utility Team" },
-                    { type: "Air", value: "950 m³", date: "2024-01-07", time: "08:25", user: "Utility Team" },
-                    { type: "CNG", value: "480 m³", date: "2024-01-07", time: "08:20", user: "Utility Team" },
-                    { type: "Listrik", value: "1,550 kWh", date: "2024-01-06", time: "17:45", user: "Utility Team" },
-                    { type: "Air", value: "920 m³", date: "2024-01-06", time: "17:40", user: "Utility Team" },
-                  ].map((entry, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-3 h-3 rounded-full ${
-                            entry.type === "Listrik"
-                              ? "bg-yellow-500"
-                              : entry.type === "Air"
-                                ? "bg-blue-500"
-                                : "bg-orange-500"
-                          }`}
-                        />
-                        <div>
-                          <p className="font-medium">
-                            {entry.type}: {entry.value}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {entry.date} {entry.time} - {entry.user}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="outline">Verified</Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+  <CardHeader>
+    <CardTitle>Data Terbaru</CardTitle>
+    <CardDescription>5 entri data terakhir dari database</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="space-y-3">
+      {latestEntries.map((entry, index) => (
+        <div
+          key={index}
+          className="flex items-center justify-between p-3 border rounded-lg"
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-3 h-3 rounded-full ${
+                entry.type === "listrik"
+                  ? "bg-yellow-500"
+                  : entry.type === "air"
+                  ? "bg-blue-500"
+                  : "bg-orange-500"
+              }`}
+            />
+            <div>
+              <p className="font-medium capitalize">
+                {entry.type}: {entry.value} {entry.type === "listrik" ? "kWh" : "m³"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {entry.date} - Meter: {entry.meter_number}
+              </p>
+            </div>
+          </div>
+          <Badge variant="outline">Verified</Badge>
+        </div>
+      ))}
+    </div>
+  </CardContent>
+</Card>
+
           </TabsContent>
                 </Tabs>
     </div>

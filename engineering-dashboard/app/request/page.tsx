@@ -22,78 +22,206 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, ChangeEvent } from "react";
+
+interface Asset {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface WorkRequest {
+  wr_number: string;
+  title: string;
+  wr_request_by_date: string;
+  wr_type: string;
+  resource: string;
+  wo_description: string;
+  wr_requestor: string;
+  year: number;
+  month: number;
+  week_of_month: number;
+  status: string;
+  urgency: string;
+  workOrderId?: string;
+  rejectionReason?: string;
+}
 
 const WorkRequestPage = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [wr_number, setWr_number] = useState(null);
+  const [wr_number, setWr_number] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [wo_description, setWo_description] = useState("");
   const [wr_type, setWr_type] = useState("");
   const [wr_requestor, setWr_requestor] = useState("");
   const [wr_request_by_date, setWr_request_by_date] = useState("");
-  const [year, setYear] = useState(null);
-  const [month, setMonth] = useState(null);
+  const [year, setYear] = useState<number | null>(null);
+  const [month, setMonth] = useState<number | null>(null);
   const [week_of_month, setWeek_of_month] = useState<number | null>(null);
   const [resource, setResource] = useState("");
-  const [workRequests, setWorkRequests] = useState<any[]>([]);
-  const [filteredWorkRequests, setFilteredWorkRequests] = useState<any[]>([]);
+  const [workRequests, setWorkRequests] = useState<WorkRequest[]>([]);
+  const [filteredWorkRequests, setFilteredWorkRequests] = useState<WorkRequest[]>([]);
 
-   const assetsByDepartment = {
-  EN: [
-    { id: "EN-001", name: "Generator Utama", description: "Generator 500KVA" },
-    { id: "EN-002", name: "Pompa Air Utama", description: "Pompa Centrifugal 100HP" },
-    { id: "EN-003", name: "Kompresor Udara", description: "Kompresor Screw 75HP" },
-    { id: "EN-004", name: "Panel Listrik Utama", description: "Panel MDP 2000A" },
-    { id: "EN-005", name: "Cooling Tower", description: "Cooling Tower 200RT" },
-  ],
-  GA: [
-    { id: "GA-001", name: "AC Central Lobby", description: "AC VRV 20PK" },
-    { id: "GA-002", name: "Lift Penumpang", description: "Lift 8 Orang" },
-    { id: "GA-003", name: "CCTV System", description: "CCTV 32 Channel" },
-    { id: "GA-004", name: "Fire Alarm Panel", description: "Fire Alarm Addressable" },
-    { id: "GA-005", name: "Access Control", description: "Card Reader System" },
-  ],
-  PD: [
-    { id: "PD-001", name: "Mesin Produksi Line 1", description: "Injection Molding 250T" },
-    { id: "PD-002", name: "Conveyor Belt A", description: "Belt Conveyor 50m" },
-    { id: "PD-003", name: "Robot Welding", description: "Welding Robot 6-Axis" },
-    { id: "PD-004", name: "Oven Curing", description: "Industrial Oven 200°C" },
-    { id: "PD-005", name: "Packaging Machine", description: "Auto Packaging Line" },
-  ],
-  QA: [
-    { id: "QA-001", name: "CMM Machine", description: "Coordinate Measuring Machine" },
-    { id: "QA-002", name: "Hardness Tester", description: "Rockwell Hardness Tester" },
-    { id: "QA-003", name: "Surface Roughness", description: "Surface Roughness Tester" },
-    { id: "QA-004", name: "Optical Comparator", description: "Profile Projector 300mm" },
-  ],
-  QC: [
-    { id: "QC-001", name: "Timbangan Digital", description: "Digital Scale 0.1mg" },
-    { id: "QC-002", name: "pH Meter", description: "Digital pH Meter" },
-    { id: "QC-003", name: "Spektrofotometer", description: "UV-Vis Spectrophotometer" },
-    { id: "QC-004", name: "Mikroskop", description: "Digital Microscope 1000x" },
-    { id: "QC-005", name: "Oven Lab", description: "Laboratory Oven 300°C" },
-  ],
-  RD: [
-    { id: "RD-001", name: "3D Printer", description: "Industrial 3D Printer" },
-    { id: "RD-002", name: "CAD Workstation", description: "High-End CAD Computer" },
-    { id: "RD-003", name: "Testing Equipment", description: "Material Testing Machine" },
-    { id: "RD-004", name: "Prototype Tools", description: "CNC Prototype Machine" },
-  ],
-WH: [
-    { id: "WH-001", name: "Forklift Electric", description: "Electric Forklift 3T" },
-    { id: "WH-002", name: "Crane Overhead", description: "Overhead Crane 5T" },
-    { id: "WH-003", name: "Pallet Jack", description: "Manual Pallet Jack 2.5T" },
-    { id: "WH-004", name: "Conveyor System", description: "Warehouse Conveyor" },
-    { id: "WH-005", name: "Barcode Scanner", description: "Wireless Barcode Scanner" },
-  ],
-}
+  // Form state for creating new work requests
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    asset_department: "",
+    asset_number: "",
+    resource: "",
+    urgency: "",
+    wr_type: "",
+    failure_code: "",
+    failure_cause: "",
+    resolution: "",
+    actual_failure_date: "",
+  });
+
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
+
+  const assetsByDepartment: Record<string, Asset[]> = {
+    EN: [
+      { id: "EN-001", name: "Generator Utama", description: "Generator 500KVA" },
+      { id: "EN-002", name: "Pompa Air Utama", description: "Pompa Centrifugal 100HP" },
+      { id: "EN-003", name: "Kompresor Udara", description: "Kompresor Screw 75HP" },
+      { id: "EN-004", name: "Panel Listrik Utama", description: "Panel MDP 2000A" },
+      { id: "EN-005", name: "Cooling Tower", description: "Cooling Tower 200RT" },
+    ],
+    GA: [
+      { id: "GA-001", name: "AC Central Lobby", description: "AC VRV 20PK" },
+      { id: "GA-002", name: "Lift Penumpang", description: "Lift 8 Orang" },
+      { id: "GA-003", name: "CCTV System", description: "CCTV 32 Channel" },
+      { id: "GA-004", name: "Fire Alarm Panel", description: "Fire Alarm Addressable" },
+      { id: "GA-005", name: "Access Control", description: "Card Reader System" },
+    ],
+    PD: [
+      { id: "PD-001", name: "Mesin Produksi Line 1", description: "Injection Molding 250T" },
+      { id: "PD-002", name: "Conveyor Belt A", description: "Belt Conveyor 50m" },
+      { id: "PD-003", name: "Robot Welding", description: "Welding Robot 6-Axis" },
+      { id: "PD-004", name: "Oven Curing", description: "Industrial Oven 200°C" },
+      { id: "PD-005", name: "Packaging Machine", description: "Auto Packaging Line" },
+    ],
+    QA: [
+      { id: "QA-001", name: "CMM Machine", description: "Coordinate Measuring Machine" },
+      { id: "QA-002", name: "Hardness Tester", description: "Rockwell Hardness Tester" },
+      { id: "QA-003", name: "Surface Roughness", description: "Surface Roughness Tester" },
+      { id: "QA-004", name: "Optical Comparator", description: "Profile Projector 300mm" },
+    ],
+    QC: [
+      { id: "QC-001", name: "Timbangan Digital", description: "Digital Scale 0.1mg" },
+      { id: "QC-002", name: "pH Meter", description: "Digital pH Meter" },
+      { id: "QC-003", name: "Spektrofotometer", description: "UV-Vis Spectrophotometer" },
+      { id: "QC-004", name: "Mikroskop", description: "Digital Microscope 1000x" },
+      { id: "QC-005", name: "Oven Lab", description: "Laboratory Oven 300°C" },
+    ],
+    RD: [
+      { id: "RD-001", name: "3D Printer", description: "Industrial 3D Printer" },
+      { id: "RD-002", name: "CAD Workstation", description: "High-End CAD Computer" },
+      { id: "RD-003", name: "Testing Equipment", description: "Material Testing Machine" },
+      { id: "RD-004", name: "Prototype Tools", description: "CNC Prototype Machine" },
+    ],
+    WH: [
+      { id: "WH-001", name: "Forklift Electric", description: "Electric Forklift 3T" },
+      { id: "WH-002", name: "Crane Overhead", description: "Overhead Crane 5T" },
+      { id: "WH-003", name: "Pallet Jack", description: "Manual Pallet Jack 2.5T" },
+      { id: "WH-004", name: "Conveyor System", description: "Warehouse Conveyor" },
+      { id: "WH-005", name: "Barcode Scanner", description: "Wireless Barcode Scanner" },
+    ],
+  };
+
+  // Form handlers
+  const handleFormChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleDepartmentChange = (val: string) => {
+    setSelectedDepartment(val);
+    setAvailableAssets(assetsByDepartment[val] || []);
+    setForm((prev) => ({ ...prev, asset_department: val, asset_number: "" }));
+  };
+
+  const resetForm = () => {
+    setForm({
+      title: "",
+      description: "",
+      asset_department: "",
+      asset_number: "",
+      resource: "",
+      urgency: "",
+      wr_type: "",
+      failure_code: "",
+      failure_cause: "",
+      resolution: "",
+      actual_failure_date: "",
+    });
+    setSelectedDepartment("");
+    setAvailableAssets([]);
+  };
+
+  const refreshAccessToken = async () => {
+    const refreshToken = localStorage.getItem("refresh");
+    const res = await fetch("http://localhost:8000/api/token/refresh/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+    if (!res.ok) throw new Error("Refresh token expired or invalid");
+    const data = await res.json();
+    localStorage.setItem("access", data.access);
+    return data.access;
+  };
+
+  const handleSubmit = async () => {
+    try {
+      let token = localStorage.getItem("access");
+
+      let response = await fetch("http://localhost:8000/api/work-request/create/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+
+      if (response.status === 401) {
+        console.warn("Access token expired. Attempting refresh...");
+        token = await refreshAccessToken();
+        response = await fetch("http://localhost:8000/api/work-request/create/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(form),
+        });
+      }
+
+      if (!response.ok) {
+        const err = await response.json();
+        console.error("Submit failed:", err);
+        alert("Failed to submit work request. Please try again.");
+        return;
+      }
+
+      alert("Work request submitted successfully!");
+      resetForm();
+      
+      // Refresh the work requests list
+      fetchWorkRequests();
+    } catch (error) {
+      console.error("Error during submit:", error);
+      alert("An error occurred while submitting the request.");
+    }
+  };
 
   // Fetching data from API
-  useEffect(() => {
+  const fetchWorkRequests = () => {
     fetch("http://localhost:8000/api/work-request/")
       .then((response) => response.json())
-      .then((data) => {
+      .then((data: WorkRequest[]) => {
         setWorkRequests(data);
         setIsLoading(false);
         if (data.length > 0) {
@@ -114,20 +242,33 @@ WH: [
         console.error("Error fetching data:", error);
         setIsLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchWorkRequests();
   }, []);
 
-  const [selectedDepartment, setSelectedDepartment] = useState("")
-  const [selectedAsset, setSelectedAsset] = useState("")
-  const [availableAssets, setAvailableAssets] = useState([])
-
-    // Update available assets when department changes
-  const handleDepartmentChange = (department) => {
-    setSelectedDepartment(department)
-    setSelectedAsset("") // Reset asset selection
-    setAvailableAssets(assetsByDepartment[department] || [])
-  }
-
-
+  useEffect(() => {
+    const checkAccessToken = async () => {
+      const token = localStorage.getItem("access");
+      if (!token) return;
+      
+      const res = await fetch("http://localhost:8000/api/me/", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.status === 401) {
+        console.warn("Access token invalid at load, refreshing...");
+        try {
+          await refreshAccessToken();
+        } catch (error) {
+          console.error("Failed to refresh token:", error);
+        }
+      }
+    };
+    checkAccessToken();
+  }, []);
 
   // Filter work orders based on week selection
   useEffect(() => {
@@ -302,7 +443,6 @@ WH: [
                           <h3 className="text-lg font-semibold">{req.title}</h3>
                           <Badge variant="outline">{req.wr_number}</Badge>
                           <Badge className={getCategoryColor(req.resource)}>{req.resource}</Badge>
-                          {/* <Badge variant={getPriorityColor(req.priority)}>{req.priority}</Badge> */}
                           <Badge className={getStatusColor(req.status)}>{req.status}</Badge>
                         </div>
 
@@ -314,16 +454,13 @@ WH: [
                             <span>Requester: {req.wr_requestor}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            {<Calendar className="h-4 w-4 text-muted-foreground" />}
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
                             <span>Date: {req.wr_request_by_date} </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <AlertCircle className="h-4 w-4 text-muted-foreground" />
                             <span>Urgency: {req.urgency}</span>
                           </div>
-                          {/* <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">Cost: Rp {req.estimatedCost.toLocaleString()}</span>
-                          </div> */}
                         </div>
 
                         {req.status === "Approved" && req.workOrderId && (
@@ -367,6 +504,7 @@ WH: [
               ))}
             </div>
           </TabsContent>
+
           <TabsContent value="create" className="space-y-4">
             <Card>
               <CardHeader>
@@ -375,25 +513,38 @@ WH: [
                   Isi form di bawah untuk mengajukan permintaan perbaikan atau maintenance
                 </CardDescription>
               </CardHeader>
+
               <CardContent className="space-y-6">
                 <div className="space-y-6">
+                  {/* Judul Request */}
                   <div className="space-y-2">
                     <Label htmlFor="title">Judul Request *</Label>
-                    <Input id="title" placeholder="Masukkan judul request..." />
+                    <Input 
+                      id="title" 
+                      name="title"
+                      value={form.title}
+                      onChange={handleFormChange}
+                      placeholder="Masukkan judul request..." 
+                    />
                   </div>
 
+                  {/* Deskripsi */}
                   <div className="space-y-2">
                     <Label htmlFor="description">Request Description/Deskripsi Detail *</Label>
                     <Textarea
                       id="description"
+                      name="description"
+                      value={form.description}
+                      onChange={handleFormChange}
                       placeholder="Jelaskan secara detail masalah yang dihadapi, gejala yang terlihat, dan tindakan yang diharapkan..."
                       rows={4}
                     />
                   </div>
 
+                  {/* Department */}
                   <div className="space-y-2">
                     <Label htmlFor="assetDepartment">Asset Department *</Label>
-                    <Select value={selectedDepartment} onValueChange={handleDepartmentChange}>
+                    <Select value={form.asset_department} onValueChange={handleDepartmentChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Pilih department asset" />
                       </SelectTrigger>
@@ -408,12 +559,18 @@ WH: [
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Asset Number */}
                   <div className="space-y-2">
                     <Label htmlFor="assetNumber">Nomor Asset *</Label>
-                    <Select value={selectedAsset} onValueChange={setSelectedAsset} disabled={!selectedDepartment}>
+                    <Select 
+                      value={form.asset_number} 
+                      onValueChange={(val) => setForm((prev) => ({ ...prev, asset_number: val }))} 
+                      disabled={!form.asset_department}
+                    >
                       <SelectTrigger>
                         <SelectValue
-                          placeholder={selectedDepartment ? "Pilih nomor asset" : "Pilih department terlebih dahulu"}
+                          placeholder={form.asset_department ? "Pilih nomor asset" : "Pilih department terlebih dahulu"}
                         />
                       </SelectTrigger>
                       <SelectContent>
@@ -424,16 +581,122 @@ WH: [
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedAsset && (
+                    {form.asset_number && (
                       <p className="text-sm text-muted-foreground">
-                        {availableAssets.find((asset) => asset.id === selectedAsset)?.description}
+                        {availableAssets.find((asset) => asset.id === form.asset_number)?.description}
                       </p>
                     )}
                   </div>
+
+                  {/* Resource */}
+                  <div className="space-y-2">
+                    <Label htmlFor="resource">Resource Dibutuhkan *</Label>
+                    <Select 
+                      value={form.resource}
+                      onValueChange={(val) => setForm((prev) => ({ ...prev, resource: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih resource yang dibutuhkan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="personnel">Tenaga Kerja / Teknisi</SelectItem>
+                        <SelectItem value="material">Material / Spare Part</SelectItem>
+                        <SelectItem value="tooling">Peralatan / Tools</SelectItem>
+                        <SelectItem value="other">Lainnya</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Urgency */}
+                  <div className="space-y-2">
+                    <Label htmlFor="urgency">Tingkat Urgensi *</Label>
+                    <Select 
+                      value={form.urgency}
+                      onValueChange={(val) => setForm((prev) => ({ ...prev, urgency: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih tingkat urgensi" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Work Request Type */}
+                  <div className="space-y-2">
+                    <Label htmlFor="wr_type">Tipe Permintaan *</Label>
+                    <Select 
+                      value={form.wr_type}
+                      onValueChange={(val) => setForm((prev) => ({ ...prev, wr_type: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih jenis permintaan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="repair">Repair</SelectItem>
+                        <SelectItem value="inspection">Inspection</SelectItem>
+                        <SelectItem value="corrective">Corrective</SelectItem>
+                        <SelectItem value="modification">Modification</SelectItem>
+                        <SelectItem value="routine">Routine Check</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Failure Code */}
+                  <div className="space-y-2">
+                    <Label htmlFor="failureCode">Failure Code (Opsional)</Label>
+                    <Input 
+                      id="failureCode" 
+                      name="failure_code"
+                      value={form.failure_code}
+                      onChange={handleFormChange}
+                      placeholder="Kode kerusakan jika diketahui..." 
+                    />
+                  </div>
+
+                  {/* Failure Cause */}
+                  <div className="space-y-2">
+                    <Label htmlFor="failureCause">Penyebab Kerusakan (Opsional)</Label>
+                    <Textarea 
+                      id="failureCause" 
+                      name="failure_cause"
+                      value={form.failure_cause}
+                      onChange={handleFormChange}
+                      placeholder="Tuliskan penyebab kerusakan jika diketahui..." 
+                    />
+                  </div>
+
+                  {/* Resolution */}
+                  <div className="space-y-2">
+                    <Label htmlFor="resolution">Solusi yang Diharapkan (Opsional)</Label>
+                    <Textarea 
+                      id="resolution" 
+                      name="resolution"
+                      value={form.resolution}
+                      onChange={handleFormChange}
+                      placeholder="Saran solusi atau tindakan jika ada..." 
+                    />
+                  </div>
+
+                  {/* Actual Failure Date */}
+                  <div className="space-y-2">
+                    <Label htmlFor="actualFailureDate">Tanggal Kejadian (Opsional)</Label>
+                    <Input 
+                      id="actualFailureDate" 
+                      name="actual_failure_date"
+                      value={form.actual_failure_date}
+                      onChange={handleFormChange}
+                      type="date" 
+                    />
+                  </div>
                 </div>
+
                 <div className="flex justify-end gap-4">
-                  <Button variant="outline">Reset Form</Button>
-                  <Button>Submit Request</Button>
+                  <Button variant="outline" onClick={resetForm}>Reset Form</Button>
+                  <Button onClick={handleSubmit}>Submit Request</Button>
                 </div>
               </CardContent>
             </Card>
@@ -442,9 +705,6 @@ WH: [
       </main>
     </div>
   );
-  
 };
-
-
 
 export default WorkRequestPage;

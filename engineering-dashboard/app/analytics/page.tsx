@@ -18,6 +18,7 @@ import {
   Area,
   AreaChart,
 } from "recharts"
+import { useEffect, useState } from "react"
 
 // Dummy data untuk analytics
 const mttrMtbfData = [
@@ -37,12 +38,6 @@ const equipmentData = [
   { equipment: "Conveyor", mttr: 3.3, mtbf: 160, failures: 4 },
 ]
 
-const categoryData = [
-  { category: "MTC", count: 25, avgMttr: 3.5, avgMtbf: 140 },
-  { category: "CAL", count: 8, avgMttr: 2.1, avgMtbf: 200 },
-  { category: "UTY", count: 12, avgMttr: 4.2, avgMtbf: 110 },
-]
-
 const downtimeData = [
   { week: "W1", planned: 8, unplanned: 12, total: 20 },
   { week: "W2", planned: 6, unplanned: 8, total: 14 },
@@ -51,13 +46,73 @@ const downtimeData = [
 ]
 
 export default function AnalyticsPage() {
-  const currentMTTR = 3.1
-  const currentMTBF = 150
-  const previousMTTR = 3.9
-  const previousMTBF = 125
+  const [isLoading, setIsLoading] = useState(true);
+  const [mttr_hours, setMttr_hours] = useState<number | null>(null);
+  const [mtbf_hours, setMtbf_hours] = useState<number | null>(null);
+  const [failure_count, setFailure_count] = useState<number | null>(null);
+  const [analyticsData, setAnalytic_data] = useState<any[]>([]);
+  const [categoryData, setCategoryData] = useState<any[]>([]);
+  const [equipmentData, setEquipmentData] = useState<any[]>([]);
+  const [monthlyTrend, setMonthlyTrend] = useState<any[]>([])
+  const [downtimeData, setDowntimeData] = useState([]);
 
-  const mttrTrend = ((currentMTTR - previousMTTR) / previousMTTR) * 100
-  const mtbfTrend = ((currentMTBF - previousMTBF) / previousMTBF) * 100
+  const currentMTTR = mttr_hours ?? 0;
+  const currentMTBF = mtbf_hours ?? 0;
+  const previousMTTR = 3.9;
+  const previousMTBF = 125;
+
+  const mttrTrend = ((currentMTTR - previousMTTR) / previousMTTR) * 100;
+  const mtbfTrend = ((currentMTBF - previousMTBF) / previousMTBF) * 100;
+
+  const totalPlanned = downtimeData.reduce((acc, d) => acc + d.planned, 0);
+  const totalUnplanned = downtimeData.reduce((acc, d) => acc + d.unplanned, 0);
+  const total = totalPlanned + totalUnplanned;
+  const unplannedRatio = total ? Math.round((totalUnplanned / total) * 100) : 0;
+
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/analytics/")
+      .then((response) => response.json())
+      .then((data) => {
+        setAnalytic_data(data);
+        setIsLoading(false);
+        if (data.length > 0) {
+          const latest = data[data.length - 1];
+          setMttr_hours(latest.mttr_hours);
+          setMtbf_hours(latest.mtbf_hours);
+          setFailure_count(latest.failure_count);
+        }
+      })
+
+      
+      .catch((error) => {
+        console.error("Error fetching analytics data:", error);
+        setIsLoading(false);
+      });
+        fetch("http://localhost:8000/api/category-analytics/")
+    .then((res) => res.json())
+    .then((data) => setCategoryData(data))
+    .catch((err) => console.error("Category fetch error:", err));
+
+    
+     fetch("http://localhost:8000/api/equipment-analytics/")
+    .then((res) => res.json())
+    .then((data) => setEquipmentData(data))
+    .catch((err) => console.error("equipment fetch error:", err))
+
+    fetch("http://localhost:8000/api/monthly-trend/")
+    .then((res) => res.json())
+    .then((data) => setMonthlyTrend(data))
+    .catch((err) => console.error("Monthly trend fetch error:", err));
+
+    fetch("http://localhost:8000/api/downtime/")
+    .then((res) => res.json())
+    .then((data) => setDowntimeData(data))
+    .catch((err) => console.error("Downtime fetch error:", err));
+
+  }, []);
+
+  
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -95,7 +150,7 @@ export default function AnalyticsPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{currentMTTR} jam</div>
+              <div className="text-2xl font-bold">{mttr_hours} jam</div>
               <div className="flex items-center gap-1 text-xs">
                 {mttrTrend < 0 ? (
                   <>
@@ -118,7 +173,7 @@ export default function AnalyticsPage() {
               <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{currentMTBF} jam</div>
+              <div className="text-2xl font-bold">{mtbf_hours} jam</div>
               <div className="flex items-center gap-1 text-xs">
                 {mtbfTrend > 0 ? (
                   <>
@@ -305,19 +360,19 @@ export default function AnalyticsPage() {
             </ResponsiveContainer>
             <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-3 border rounded-lg">
-                <p className="text-2xl font-bold text-green-600">28h</p>
+                <p className="text-2xl font-bold text-green-600">{totalPlanned}</p>
                 <p className="text-sm text-muted-foreground">Total Planned</p>
               </div>
               <div className="text-center p-3 border rounded-lg">
-                <p className="text-2xl font-bold text-red-600">41h</p>
+                <p className="text-2xl font-bold text-red-600">{totalUnplanned}</p>
                 <p className="text-sm text-muted-foreground">Total Unplanned</p>
               </div>
               <div className="text-center p-3 border rounded-lg">
-                <p className="text-2xl font-bold">69h</p>
+                <p className="text-2xl font-bold">{total}</p>
                 <p className="text-sm text-muted-foreground">Total Downtime</p>
               </div>
               <div className="text-center p-3 border rounded-lg">
-                <p className="text-2xl font-bold">59%</p>
+                <p className="text-2xl font-bold">{unplannedRatio}%</p>
                 <p className="text-sm text-muted-foreground">Unplanned Ratio</p>
               </div>
             </div>

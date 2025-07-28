@@ -8,3 +8,9 @@ class IsAdminUserProfile(BasePermission):
             and hasattr(request.user, 'userprofile')
             and request.user.userprofile.role == 'admin'
         )
+
+from rest_framework.permissions import BasePermission
+
+class IsAuthenticatedUser(BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated

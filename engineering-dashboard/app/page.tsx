@@ -13,27 +13,6 @@ import {
 } from "recharts";
 import { RoleIndicator } from "@/components/role-indicator";
 
-// ✅ Dummy data tetap aman
-const energyData = [
-  { name: "Sen", listrik: 1200, air: 800, cng: 400 },
-  { name: "Sel", listrik: 1100, air: 750, cng: 380 },
-  { name: "Rab", listrik: 1300, air: 820, cng: 420 },
-  { name: "Kam", listrik: 1250, air: 790, cng: 410 },
-  { name: "Jum", listrik: 1400, air: 850, cng: 450 },
-  { name: "Sab", listrik: 900, air: 600, cng: 300 },
-  { name: "Min", listrik: 800, air: 550, cng: 280 },
-];
-
-
-const mttrData = [
-  { month: "Jan", mttr: 4.2, mtbf: 120 },
-  { month: "Feb", mttr: 3.8, mtbf: 135 },
-  { month: "Mar", mttr: 4.5, mtbf: 110 },
-  { month: "Apr", mttr: 3.2, mtbf: 145 },
-  { month: "Mei", mttr: 3.9, mtbf: 125 },
-  { month: "Jun", mttr: 3.1, mtbf: 150 },
-];
-
 export default function Dashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
@@ -58,6 +37,23 @@ export default function Dashboard() {
   const [resource, setResource] = useState("");
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
+  const [mttrData, setMttrData] = useState([]);
+  const [energyData, setEnergyByDayData] = useState([]);
+
+  const monthMap = {
+  "01": "Jan",
+  "02": "Feb",
+  "03": "Mar",
+  "04": "Apr",
+  "05": "Mei", // pakai "May" kalau mau English
+  "06": "Jun",
+  "07": "Jul",
+  "08": "Aug",
+  "09": "Sep",
+  "10": "Oct",
+  "11": "Nov",
+  "12": "Dec",
+};
   
   const woStatusData = [
   { name: "Released", value: activeWorkOrders, color: "#ef4444" },
@@ -68,7 +64,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Check for authentication and redirect if needed
-    const access = localStorage.getItem("access");
+    const access = localStorage.getItem("accessToken");
     const userJson = localStorage.getItem("user");
 
     if (!access || !userJson || userJson === "undefined") {
@@ -91,6 +87,33 @@ export default function Dashboard() {
     } catch {
       router.push("/login");
     }
+
+    fetch("http://localhost:8000/api/monthly-trend/")
+  .then((res) => res.json())
+  .then((data) => {
+    if (!Array.isArray(data)) {
+      console.error("Unexpected response:", data);
+      return;
+    }
+
+    const transformed = data.map((item) => {
+      const monthCode = item.month?.split("-")[1]; // Pastikan item.month ada
+      return {
+        month: monthMap[monthCode] || item.month,
+        mttr: item.mttr,
+        mtbf: item.mtbf,
+      };
+    });
+
+    setMttrData(transformed);
+  })
+  .catch((err) => console.error("Monthly trend fetch error:", err));
+
+
+  fetch("http://localhost:8000/api/energydaily/")
+    .then((res) => res.json())
+    .then((data) => setEnergyByDayData(data))
+    .catch((err) => console.error("Energy by day fetch error:", err));
 
     // Fetch Active Work Orders from Django API
     fetch("http://localhost:8000/api/active-work-orders/")
