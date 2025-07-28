@@ -114,7 +114,18 @@ class UserListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUserProfile]
 
     def get(self, request):
+        search_query = request.query_params.get('search', None)
+        
         profiles = UserProfile.objects.select_related("user").all()
+        
+        if search_query:
+            profiles = profiles.filter(
+                Q(user__username__icontains=search_query) |
+                Q(full_name__icontains=search_query) |
+                Q(role__icontains=search_query) |
+                Q(division__icontains=search_query)
+            )
+            
         serializer = UserProfileWithUserSerializer(profiles, many=True)
         return Response(serializer.data)
 
@@ -795,10 +806,55 @@ class DocumentUploadView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def get(self, request):  # ⬅️ indentasi di sini sudah benar
+        user = request.user
+        if user.userprofile.role == "admin":
+            docs = Document.objects.all().order_by('-uploaded_at')
+        else:
+            docs = Document.objects.filter(uploaded_by=user).order_by('-uploaded_at')
+
+        serializer = DocumentSerializer(docs, many=True)
+        return Response(serializer.data)
+
+
+# Optional: bisa dihapus kalau fungsinya sudah dipindahkan ke atas
 class DocumentListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         docs = Document.objects.all().order_by('-uploaded_at')
         serializer = DocumentSerializer(docs, many=True)
+        return Response(serializer.data)
+
+class EnergyInputListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        status_param = request.query_params.get("status")
+        if status_param:
+            queryset = EnergyInput.objects.filter(status=status_param)
+        else:
+            queryset = EnergyInput.objects.all()
+
+        serializer = EnergyInputSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+class AuditTrailView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUserProfile]
+
+    def get(self, request):
+        search_query = request.query_params.get('search', None)
+        
+        logs = LogEntry.objects.all().order_by('-action_time')
+        
+        if search_query:
+            logs = logs.filter(
+                Q(user__username__icontains=search_query) |
+                Q(user__first_name__icontains=search_query) |
+                Q(user__last_name__icontains=search_query) |
+                Q(object_repr__icontains=search_query) |
+                Q(change_message__icontains=search_query)
+            )
+            
+        serializer = AuditTrailSerializer(logs, many=True)
         return Response(serializer.data)

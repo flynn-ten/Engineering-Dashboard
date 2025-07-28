@@ -211,18 +211,12 @@ class Document(models.Model):
         ("Production", "Production"),
     ]
 
-    STATUS_CHOICES = [
-        ("Draft", "Draft"),
-        ("Active", "Active"),
-        ("Archived", "Archived"),
-    ]
 
     file_name = models.CharField(max_length=255)
     file_url = models.URLField()  # Supabase public URL
     version = models.CharField(max_length=20)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     department = models.CharField(max_length=100, choices=DEPARTMENT_CHOICES)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     description = models.TextField(blank=True)
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)

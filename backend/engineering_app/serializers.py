@@ -85,3 +85,22 @@ class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
         fields = '__all__'
+
+from django.contrib.admin.models import LogEntry
+from django.contrib.contenttypes.models import ContentType
+from rest_framework import serializers
+
+class AuditTrailSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    content_type = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = LogEntry
+        fields = ['action_time', 'user', 'content_type', 'object_id', 'object_repr', 'action_flag', 'change_message']
+    
+    def get_user(self, obj):
+        return obj.user.get_full_name() if obj.user else None
+    
+    def get_content_type(self, obj):
+        return obj.content_type.model if obj.content_type else None
+

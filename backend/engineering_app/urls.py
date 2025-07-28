@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import MeView, RegisterUserView, DivisionListView, WorkRequestStatusUpdateAPIView, CustomTokenObtainPairView, DocumentUploadView, DocumentListView
+from .views import MeView, RegisterUserView, DivisionListView, WorkRequestStatusUpdateAPIView, CustomTokenObtainPairView, DocumentUploadView, DocumentListView, EnergyInputListView
 from . import views
 from .views import MeView, RegisterUserView, DivisionListView, UserListView, UserStatsView, WorkRequestCreateAPIView, EnergyInputCreateView, UserEnergyInputListView, latest_energy_inputs, UserStatusUpdateView, ResetUserPasswordView
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -34,5 +34,7 @@ urlpatterns = [
     path("users/<int:pk>/reset-password/", ResetUserPasswordView.as_view(), name="user-reset-password"),
     path('documents/upload/', DocumentUploadView.as_view(), name='upload-document'),
     path('documents/', DocumentListView.as_view(), name='document-list'),
+    path('energy-input/', EnergyInputListView.as_view(), name='energy-input-list'),
+
 
 ]
