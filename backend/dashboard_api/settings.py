@@ -103,7 +103,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'kalbe_dashboard',
         'USER': 'postgres',          # user PostgreSQL lu
-        'PASSWORD': 'riska06', # ganti sesuai password pg lu
+        'PASSWORD': '12345678', # ganti sesuai password pg lu
         'HOST': 'localhost',
         'PORT': '5432',
     }
