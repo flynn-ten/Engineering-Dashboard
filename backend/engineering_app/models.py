@@ -1,3 +1,4 @@
+from django.utils import timezone  
 from django.contrib.auth.models import User
 from django.db import models
 import uuid
@@ -142,18 +143,17 @@ class WorkRequest(models.Model):
     ]
 
     wr_number = models.CharField(max_length=100, unique=True, editable=False)
-    title = models.CharField(max_length=255)
-    description = models.TextField()
-    asset_number = models.CharField(max_length=100)
-    asset_department = models.CharField(max_length=100)
-    resource = models.CharField(max_length=100)
+    title = models.CharField(max_length=255) # requester
+    description = models.TextField() # requester
     urgency = models.CharField(max_length=10, choices=URGENCY_CHOICES)
-    wr_type = models.CharField(max_length=20, choices=WR_TYPE_CHOICES)
-    
-    failure_code = models.CharField(max_length=100, blank=True, null=True)
-    failure_cause = models.TextField(blank=True, null=True)
-    resolution = models.TextField(blank=True, null=True)
-    actual_failure_date = models.DateField(blank=True, null=True)
+    wr_type = models.CharField(max_length=20, choices=WR_TYPE_CHOICES) # requester
+    asset_department = models.CharField(max_length=100, default='EN') # requester
+    asset_number = models.CharField(max_length=100, default='UNKNOWN') # requester
+    failure_code = models.CharField(max_length=100, blank=True, null=True) # requester
+    failure_cause = models.TextField(blank=True, null=True) # requester
+    resolution = models.TextField(blank=True, null=True) # requester
+    actual_failure_date = models.DateField(blank=True, null=True) # requester
+    completion_by_date = models.DateField(blank=True, null=True) # requester
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='work_requests')
@@ -170,3 +170,59 @@ class WorkRequest(models.Model):
 
     def __str__(self):
         return self.wr_number
+    
+    
+
+class WorkOrder(models.Model):
+    STATUS_CHOICES = [
+        ('unreleased', 'Unreleased'),
+        ('released', 'Released'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    work_request = models.OneToOneField(WorkRequest, on_delete=models.CASCADE, related_name="work_order")
+    wo_number = models.CharField(max_length=100, unique=True, editable=False)
+    wr_number = models.CharField(max_length=100, default="WR-DEFAULT")  # linked ke WR
+    title = models.CharField(max_length=255, default="No title")
+    description = models.TextField(default="No description")
+    
+    asset_number = models.CharField(max_length=100, default='UNKNOWN')
+    asset_department = models.CharField(max_length=100, default='EN')
+    asset_group = models.CharField(max_length=100, blank=True, null=True)
+    asset_area = models.CharField(max_length=100, blank=True, null=True)
+    parent_asset = models.CharField(max_length=100, blank=True, null=True)
+
+    resource = models.CharField(max_length=100, default='EN')
+    urgency = models.CharField(max_length=10, default='UNKNOWN')
+    wo_type = models.CharField(max_length=50, default='UNKNOWN')
+
+    failure_code = models.CharField(max_length=100, blank=True, null=True)
+    failure_cause = models.TextField(blank=True, null=True)
+    resolution = models.TextField(blank=True, null=True)
+    actual_failure_date = models.DateField(blank=True, null=True)
+    completion_by_date = models.DateField(blank=True, null=True)
+    cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unreleased')
+    wo_created_at = models.DateTimeField(auto_now_add=True)
+    wo_start_date = models.DateTimeField(blank=True, null=True)
+    wo_completion_date = models.DateTimeField(blank=True, null=True)
+    actual_duration = models.DurationField(blank=True, null=True)
+    requester = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    engineer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='work_orders')
+
+    def save(self, *args, **kwargs):
+        if not self.wo_number:
+            self.wo_number = f"WO-{uuid.uuid4().hex[:6].upper()}"
+        # set start date
+        if self.status == 'released' and not self.wo_start_date:
+            self.wo_start_date = timezone.now()
+        # set completion date + duration
+        if self.status == 'completed' and not self.wo_completion_date:
+            self.wo_completion_date = timezone.now()
+            if self.wo_start_date:
+                self.actual_duration = self.wo_completion_date - self.wo_start_date
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.wo_number

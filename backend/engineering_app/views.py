@@ -1,23 +1,116 @@
+from django.utils import timezone  
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
 from .permissions import IsAdminUserProfile
-from .serializers import UserProfileWithUserSerializer
+from .serializers import UserProfileWithUserSerializer, WorkOrderSerializer, WorkOrderStatusSerializer, WorkOrderUpdateSerializer
 from .serializers import UserProfileSerializer
 from django.http import JsonResponse
 from django.db import connection
 import pandas as pd
+from rest_framework import permissions
+from .models import WorkOrder, WorkRequest
 from rest_framework.decorators import api_view
+from rest_framework import generics
+from rest_framework.generics import RetrieveUpdateAPIView
+
 
 
 
 from .models import UserProfile, active_work_orders, analytics
 from .serializers import UserSerializer
 from .serializers import WorkRequestSerializer
+from rest_framework import permissions
 
+
+class WorkOrderDetailAPIView(RetrieveUpdateAPIView):
+    queryset = WorkOrder.objects.all()
+    serializer_class = WorkOrderUpdateSerializer
+    permission_classes = [IsAuthenticated]
+
+class WorkOrderListCreateAPIView(generics.ListCreateAPIView):
+    queryset = WorkOrder.objects.all()
+    serializer_class = WorkOrderSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+# 2. Status change (release/complete)
+class WorkOrderStatusUpdateAPIView(generics.UpdateAPIView):
+    queryset = WorkRequest.objects.all()
+    serializer_class = WorkOrderStatusSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "id"
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        status_value = request.data.get("wo_status")
+
+        if status_value == "released" and not instance.wo_start_date:
+            instance.wo_status = "released"
+            instance.wo_start_date = timezone.now()
+
+        elif status_value == "completed" and not instance.wo_completion_date:
+            instance.wo_status = "completed"
+            instance.wo_completion_date = timezone.now()
+            if instance.wo_start_date:
+                instance.actual_duration = instance.wo_completion_date - instance.wo_start_date
+
+        instance.save()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+class WorkOrderUpdateAPIView(generics.UpdateAPIView):
+    queryset = WorkOrder.objects.all()
+    serializer_class = WorkOrderUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "wo_number"  # or 'id' if you're using numeric ID
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+
+        if not serializer.is_valid():
+            print("🔥 Validation Error:", serializer.errors)
+            return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+        self.perform_update(serializer)
+        return Response(serializer.data)
+    
+    
+
+class WorkOrderStatusUpdateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, wo_number):
+        try:
+            wo = WorkOrder.objects.get(wo_number=wo_number)
+        except WorkOrder.DoesNotExist:
+            return Response({"error": "Work Order not found"}, status=404)
+
+        serializer = WorkOrderStatusSerializer(wo, data=request.data, partial=True)
+        if serializer.is_valid():
+            new_status = serializer.validated_data.get("wo_status")
+            now = timezone.now()
+
+            if new_status == "released" and not wo.wo_start_date:
+                wo.wo_start_date = now
+
+            if new_status == "completed" and not wo.wo_completion_date:
+                wo.wo_completion_date = now
+                if wo.wo_start_date:
+                    wo.actual_duration = now - wo.wo_start_date
+
+            wo.wo_status = new_status
+            wo.save()
+            return Response(WorkOrderStatusSerializer(wo).data)
+
+        return Response(serializer.errors, status=400)
+        
 class WorkRequestStatusUpdateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -35,9 +128,39 @@ class WorkRequestStatusUpdateAPIView(APIView):
         if new_status == "approved":
             from django.utils import timezone
             wr.approved_at = timezone.now()
+            WorkOrder.objects.create(work_request=wr)
 
         wr.save()
         return Response({"message": f"Status updated to {new_status}"}, status=200)
+    
+    def patch(self, request, pk):
+        wr = get_object_or_404(WorkRequest, pk=pk)
+        new_status = request.data.get("status")
+
+        if new_status:
+            wr.status = new_status
+            wr.save()
+
+            # ✅ Jika status baru adalah "approved", buat WorkOrder
+            if new_status == "approved":
+                # Cek dulu supaya tidak buat duplikat WO
+                if not hasattr(wr, "work_order"):
+                    WorkOrder.objects.create(
+                        wr_number=wr.wr_number,
+                        title=wr.title,
+                        description=wr.description,
+                        urgency=wr.urgency,
+                        wo_type=wr.wr_type,
+                        requester=wr.requested_by,
+                        asset_number=wr.asset_number,
+                        asset_department=wr.asset_department,
+                        actual_failure_date=wr.actual_failure_date,
+                        completion_by_date=wr.completion_by_date,
+
+                        work_request=wr
+                    )
+
+        return Response({"message": f"Status updated to {new_status}"})
 
 class WorkRequestCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -256,34 +379,36 @@ def work_request_list(request):
     with connection.cursor() as cursor:
         cursor.execute("""
            SELECT
+                id,
                 wr_number,
                 title,
-                wo_description,
-                resource,
+                description,
                 wr_type,
-                wr_request_by_date,
-                wr_requestor,
-                EXTRACT(YEAR FROM wr_request_by_date) AS year,
-                EXTRACT(MONTH FROM wr_request_by_date) AS month,
-                FLOOR((EXTRACT(DAY FROM wr_request_by_date) - 1) / 7) + 1 AS week_of_month
-            FROM main_data
-            WHERE wr_request_by_date is not null
-            ORDER BY wr_request_by_date DESC;
+                requested_by_id,
+                status,
+                EXTRACT(YEAR FROM created_at) AS year,
+                EXTRACT(MONTH FROM created_at) AS month,
+                FLOOR((EXTRACT(DAY FROM created_at) - 1) / 7) + 1 AS week_of_month,
+                completion_by_date
+            FROM engineering_app_workrequest
+            WHERE created_at is not null
+            ORDER BY created_at DESC;
         """)
         rows = cursor.fetchall()
 
     work_request = [
         {
-            "wr_number": row[0],
-            "title": row[1],
-            "wo_description": row[2],
-            "resource": row[3],
+            "id": row[0],
+            "wr_number": row[1],
+            "title": row[2],
+            "description": row[3],
             "wr_type": row[4],
-            "wo_request_by_date": row[5],
-            "wr_requestor": row[6],
+            "wo_request_by_id": row[5],
+            "status": row[6],
             "year": row[7],
             "month": row[8],
-            "week_of_month": row[9]
+            "week_of_month": row[9],
+            "completion_by_date": row[10]
         }
         for row in rows
     ]

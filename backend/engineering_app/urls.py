@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import MeView, RegisterUserView, DivisionListView, WorkRequestStatusUpdateAPIView
+from .views import MeView, RegisterUserView, DivisionListView, WorkOrderDetailAPIView, WorkOrderListCreateAPIView, WorkOrderStatusUpdateAPIView, WorkOrderUpdateAPIView, WorkRequestStatusUpdateAPIView
 from . import views
 from .views import MeView, RegisterUserView, DivisionListView, UserListView, UserStatsView, WorkRequestCreateAPIView
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -23,8 +23,16 @@ urlpatterns = [
     path('monthly-trend/', views.monthly_trend),
     path('downtime/', views.weekly_downtime),
     path('energydaily/', views.energydaily),
-    path('work-request/', WorkRequestCreateAPIView.as_view(), name='work-request'),
+    path('work-request-update/', WorkRequestCreateAPIView.as_view(), name='work-request'),
     path('work-request/create/', WorkRequestCreateAPIView.as_view(), name='work-request-create'),
-    path("work-request/update-status/<int:pk>/", WorkRequestStatusUpdateAPIView.as_view(), name="update-work-request-status")
+    path("work-request/update-status/<int:pk>/", WorkRequestStatusUpdateAPIView.as_view(), name="update-work-request-status"),
+    path('work-order/update/<str:wo_number>/', WorkOrderUpdateAPIView.as_view(), name='work-order-update'),
+    path('work-order/update-status/<str:wo_number>/', WorkOrderStatusUpdateAPIView.as_view(), name='work-order-status-update'),
+    path("work-orders/<int:id>/update/", WorkOrderUpdateAPIView.as_view(), name="update-work-order"),
+    path("work-orders/<int:id>/status/", WorkOrderStatusUpdateAPIView.as_view(), name="status-work-order"),
+    path('work-orders/', WorkOrderListCreateAPIView.as_view(), name='workorder-list'),
+    path('work-orders/<int:pk>/', WorkOrderDetailAPIView.as_view(), name='workorder-detail'),
+    path("work-orders/<str:wo_number>/", WorkOrderUpdateAPIView.as_view(), name="workorder-update"),
+
 
 ]
