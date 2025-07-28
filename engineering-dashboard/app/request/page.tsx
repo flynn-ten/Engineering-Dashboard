@@ -28,10 +28,11 @@ const WorkRequestPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [wr_number, setWr_number] = useState(null);
   const [title, setTitle] = useState("");
-  const [wo_description, setWo_description] = useState("");
+  const [description, setDescription] = useState("");
   const [wr_type, setWr_type] = useState("");
   const [wr_requestor, setWr_requestor] = useState("");
-  const [wr_request_by_date, setWr_request_by_date] = useState("");
+  const [wr_request_by_id, setWr_request_by_id] = useState("");
+  const [status, setStatus] = useState("");
   const [year, setYear] = useState(null);
   const [month, setMonth] = useState(null);
   const [week_of_month, setWeek_of_month] = useState<number | null>(null);
@@ -41,18 +42,23 @@ const WorkRequestPage = () => {
 
   // Form state for creating new work requests
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    asset_department: "",
-    asset_number: "",
-    resource: "",
-    urgency: "",
-    wr_type: "",
-    failure_code: "",
-    failure_cause: "",
-    resolution: "",
-    actual_failure_date: "",
-  });
+  title: "",
+  description: "",
+  asset_department: "",
+  asset_number: "",
+  actual_failure_date: "",
+  completion_by_date: "",
+  urgency: "medium",       // ✅ default value biar gak error
+  wr_type: "repair",       // ✅ default value biar gak error
+});
+  const formatDateToYYYYMMDD = (date: string | Date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().split("T")[0];
+};
+
+
 
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [availableAssets, setAvailableAssets] = useState([]);
@@ -107,6 +113,57 @@ const WorkRequestPage = () => {
     ],
   }
 
+  // Asset Group options
+  const assetGroups = [
+    { value: "mechanical", label: "Mechanical Equipment" },
+    { value: "electrical", label: "Electrical Equipment" },
+    { value: "instrumentation", label: "Instrumentation & Control" },
+    { value: "building", label: "Building & Infrastructure" },
+    { value: "safety", label: "Safety Equipment" },
+    { value: "utility", label: "Utility Systems" },
+    { value: "transport", label: "Transportation Equipment" },
+    { value: "it", label: "IT Equipment" },
+  ];
+
+  // Asset Area options
+  const assetAreas = [
+    { value: "production_floor", label: "Production Floor" },
+    { value: "warehouse", label: "Warehouse" },
+    { value: "office_area", label: "Office Area" },
+    { value: "utility_room", label: "Utility Room" },
+    { value: "laboratory", label: "Laboratory" },
+    { value: "outdoor", label: "Outdoor Area" },
+    { value: "parking", label: "Parking Area" },
+    { value: "canteen", label: "Canteen" },
+    { value: "security_post", label: "Security Post" },
+  ];
+
+  // Asset Activity options
+  const assetActivities = [
+    { value: "production", label: "Production Process" },
+    { value: "quality_control", label: "Quality Control" },
+    { value: "material_handling", label: "Material Handling" },
+    { value: "maintenance", label: "Maintenance Support" },
+    { value: "hvac", label: "HVAC System" },
+    { value: "power_distribution", label: "Power Distribution" },
+    { value: "water_treatment", label: "Water Treatment" },
+    { value: "waste_management", label: "Waste Management" },
+    { value: "security", label: "Security System" },
+    { value: "communication", label: "Communication System" },
+  ];
+
+  // Parent Asset options (simplified - in real app this would be dynamic based on hierarchy)
+  const parentAssets = [
+    { value: "main_production_line", label: "Main Production Line" },
+    { value: "power_system", label: "Main Power System" },
+    { value: "water_system", label: "Water System" },
+    { value: "hvac_system", label: "HVAC System" },
+    { value: "building_structure", label: "Building Structure" },
+    { value: "safety_system", label: "Safety System" },
+    { value: "it_infrastructure", label: "IT Infrastructure" },
+    { value: "waste_treatment", label: "Waste Treatment System" },
+  ];
+
   // Form handlers
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -119,122 +176,145 @@ const WorkRequestPage = () => {
     setForm((prev) => ({ ...prev, asset_department: val, asset_number: "" }));
   };
 
+  // Format currency for Indonesian Rupiah
+  const formatCurrency = (value) => {
+    if (!value) return "";
+    const numericValue = value.replace(/[^\d]/g, "");
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(numericValue);
+  };
+
+  const handleCostChange = (e) => {
+    const rawValue = e.target.value.replace(/[^\d]/g, "");
+    setForm((prev) => ({ ...prev, cost: rawValue }));
+  };
+
   const resetForm = () => {
     setForm({
       title: "",
       description: "",
       asset_department: "",
       asset_number: "",
-      resource: "",
       urgency: "",
       wr_type: "",
-      failure_code: "",
-      failure_cause: "",
-      resolution: "",
       actual_failure_date: "",
+      completion_by_date: "",
     });
     setSelectedDepartment("");
     setAvailableAssets([]);
   };
 
   const refreshAccessToken = async () => {
-  const refreshToken = localStorage.getItem("refreshToken");
-
-  if (!refreshToken) {
-    console.error("Refresh token not found");
-    throw new Error("Refresh token not available");
-  }
-
-  const res = await fetch("http://localhost:8000/api/token/refresh/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh: refreshToken }),
-  });
-
-  if (!res.ok) {
-    // Kalau gagal, cek isi response dan log-nya
-    const text = await res.text();
-    console.error("Failed to refresh token. Server response:", text);
-    throw new Error("Refresh token expired or invalid");
-  }
-
-  const data = await res.json();
-  localStorage.setItem("accessToken", data.access);
-  return data.access;
-};
-
+    const refreshToken = localStorage.getItem("refreshToken");
+    const res = await fetch("http://localhost:8000/api/token/refresh/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+    if (!res.ok) throw new Error("Refresh token expired or invalid");
+    const data = await res.json();
+    localStorage.setItem("accessToken", data.access);
+    return data.access;
+  };
 
   const handleSubmit = async () => {
-    try {
-      let token = localStorage.getItem("accessToken");
+  try {
+    let token = localStorage.getItem("accessToken");
 
-      let response = await fetch("http://localhost:8000/api/work-request/create/", {
+    const preparedForm = {
+      ...form,
+      actual_failure_date: formatDateToYYYYMMDD(form.actual_failure_date) || null,
+      completion_by_date: formatDateToYYYYMMDD(form.completion_by_date) || null,
+    };
+
+
+    console.log("🔍 Data to be submitted:", preparedForm);
+
+    let response = await fetch("http://localhost:8000/api/work-request/create/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(preparedForm), // ⬅️ pakai data yang sudah diformat
+    });
+
+    if (response.status === 401) {
+      console.warn("Access token expired. Attempting refresh...");
+      token = await refreshAccessToken();
+      response = await fetch("http://localhost:8000/api/work-request/create/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(preparedForm),
       });
-
-      if (response.status === 401) {
-        console.warn("Access token expired. Attempting refresh...");
-        token = await refreshAccessToken();
-        response = await fetch("http://localhost:8000/api/work-request/create/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-
-          },
-          body: JSON.stringify(form),
-        });
-      }
-
-      if (!response.ok) {
-        const err = await response.json();
-        console.error("Submit failed:", err);
-        alert("Failed to submit work request. Please try again.");
-        return;
-      }
-
-      alert("Work request submitted successfully!");
-      resetForm();
-      
-      // Refresh the work requests list
-      fetchWorkRequests();
-    } catch (error) {
-      console.error("Error during submit:", error);
-      alert("An error occurred while submitting the request.");
     }
-  };
+
+    if (!response.ok) {
+      const err = await response.json();
+      console.error("❌ Submit failed:", err);
+      alert("❌ Failed to submit work request. Check console for details.");
+      return;
+    }
+
+    alert("✅ Work request submitted successfully!");
+    resetForm();
+    fetchWorkRequests();
+  } catch (error) {
+    console.error("💥 Error during submit:", error);
+    alert("An error occurred while submitting the request.");
+  }
+};
+
 
   // Fetching data from API
   const fetchWorkRequests = () => {
-    fetch("http://localhost:8000/api/work-request/")
-      .then((response) => response.json())
-      .then((data) => {
+  const token = localStorage.getItem("accessToken");
+
+  fetch("http://localhost:8000/api/work-request/", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log("✅ fetched data:", data);
+
+      if (Array.isArray(data)) {
         setWorkRequests(data);
         setIsLoading(false);
+
         if (data.length > 0) {
           const latestData = data[0];
           setWr_number(latestData.wr_number);
           setTitle(latestData.title);
-          setWr_request_by_date(latestData.wr_request_by_date);
+          setWr_request_by_id(latestData.wr_request_by_id);
           setWr_type(latestData.wr_type);
           setResource(latestData.resource);
-          setWo_description(latestData.wo_description);
-          setWr_requestor(latestData.wr_requestor);
+          setDescription(latestData.description);
+          setStatus(latestData.status);
           setYear(latestData.year);
           setMonth(latestData.month);
           setWeek_of_month(latestData.week_of_month);
         }
-      })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-        setIsLoading(false);
-      });
-  };
+      } else {
+        console.warn("❌ data is not array:", data);
+        setWorkRequests([]);  // biar tetap aman
+        setFilteredWorkRequests([]);
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching data:", error);
+      setIsLoading(false);
+    });
+};
+
 
   useEffect(() => {
     fetchWorkRequests();
@@ -434,7 +514,7 @@ const WorkRequestPage = () => {
             {/* Request List */}
             <div className="space-y-4">
               {filteredWorkRequests.map((req) => (
-                <Card key={req.wr_number}>
+                <Card key={req.wr_number || req.id}>
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="space-y-3 flex-1">
@@ -450,11 +530,11 @@ const WorkRequestPage = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
-                            <span>Requester: {req.wr_requestor}</span>
+                            <span>Requester: {req.requester_name}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             {<Calendar className="h-4 w-4 text-muted-foreground" />}
-                            <span>Date: {req.wr_request_by_date} </span>
+                            <span>Date: {new Date(req.created_at).toLocaleDateString()}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -587,24 +667,40 @@ const WorkRequestPage = () => {
                     )}
                   </div>
 
-                  {/* Resource */}
+                  {/* Asset Group */}
+                  
+
+                  {/* Asset Area */}
+
+
+                  {/* Asset Activity */}
+                  
+
+                  {/* Parent Asset */}
+                  
+
+                  {/* Cost */}
+                  
+
+                  {/* Resource
                   <div className="space-y-2">
-                    <Label htmlFor="resource">Resource Dibutuhkan *</Label>
-                    <Select 
+                    <Label htmlFor="resource">Kategori Resource *</Label>
+                    <Select
                       value={form.resource}
                       onValueChange={(val) => setForm((prev) => ({ ...prev, resource: val }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Pilih resource yang dibutuhkan" />
+                        <SelectValue placeholder="Pilih kategori resource" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="personnel">Tenaga Kerja / Teknisi</SelectItem>
-                        <SelectItem value="material">Material / Spare Part</SelectItem>
-                        <SelectItem value="tooling">Peralatan / Tools</SelectItem>
-                        <SelectItem value="other">Lainnya</SelectItem>
+                        <SelectItem value="MTC">Maintenance (MTC)</SelectItem>
+                        <SelectItem value="CAL">Calibration (CAL)</SelectItem>
+                        <SelectItem value="UTY">Utility (UTY)</SelectItem>
                       </SelectContent>
-                    </Select>
-                  </div>
+                    </Select>s
+                  </div> */}
+
+                  
 
                   {/* Urgency */}
                   <div className="space-y-2">
@@ -645,40 +741,13 @@ const WorkRequestPage = () => {
                   </div>
 
                   {/* Failure Code */}
-                  <div className="space-y-2">
-                    <Label htmlFor="failureCode">Failure Code (Opsional)</Label>
-                    <Input 
-                      id="failureCode" 
-                      name="failure_code"
-                      value={form.failure_code}
-                      onChange={handleFormChange}
-                      placeholder="Kode kerusakan jika diketahui..." 
-                    />
-                  </div>
+                
 
                   {/* Failure Cause */}
-                  <div className="space-y-2">
-                    <Label htmlFor="failureCause">Penyebab Kerusakan (Opsional)</Label>
-                    <Textarea 
-                      id="failureCause" 
-                      name="failure_cause"
-                      value={form.failure_cause}
-                      onChange={handleFormChange}
-                      placeholder="Tuliskan penyebab kerusakan jika diketahui..." 
-                    />
-                  </div>
+                  
 
                   {/* Resolution */}
-                  <div className="space-y-2">
-                    <Label htmlFor="resolution">Solusi yang Diharapkan (Opsional)</Label>
-                    <Textarea 
-                      id="resolution" 
-                      name="resolution"
-                      value={form.resolution}
-                      onChange={handleFormChange}
-                      placeholder="Saran solusi atau tindakan jika ada..." 
-                    />
-                  </div>
+                  
 
                   {/* Actual Failure Date */}
                   <div className="space-y-2">
@@ -691,6 +760,17 @@ const WorkRequestPage = () => {
                       type="date" 
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="completionByDate">harus beres kapan ?</Label>
+                  <Input 
+                    id="completionByDate" 
+                    name="completion_by_date"
+                    value={form.completion_by_date}
+                    onChange={handleFormChange}
+                    type="date" 
+                  />
                 </div>
 
                 <div className="flex justify-end gap-4">
@@ -707,3 +787,4 @@ const WorkRequestPage = () => {
 };
 
 export default WorkRequestPage;
+
