@@ -66,7 +66,7 @@ export function AppSidebar() {
   const [currentUser, setCurrentUser] = useState<any>(null)
 
   useEffect(() => {
-    const access = localStorage.getItem("access")
+    const access = localStorage.getItem("accessToken")
     const userJson = localStorage.getItem("user")
 
     if (access && userJson && userJson !== "undefined") {
@@ -83,7 +83,7 @@ export function AppSidebar() {
   if (!hasMounted) return null
 
   const isAuthPage = pathname === "/login"
-  const accessToken = localStorage.getItem("access")
+  const accessToken = localStorage.getItem("accessToken")
 
   // 🚫 Sembunyikan sidebar di halaman login atau kalau belum login
   if (isAuthPage || !accessToken) return null

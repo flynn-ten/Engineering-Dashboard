@@ -30,8 +30,8 @@ export default function LoginPage() {
       }
 
       // Simpan access & refresh token
-      localStorage.setItem('access', data.access);
-      localStorage.setItem('refresh', data.refresh);
+      localStorage.setItem('accessToken', data.access);
+      localStorage.setItem('refreshToken', data.refresh);
       
       console.log('🔐 Access Token:', data.access);
 
