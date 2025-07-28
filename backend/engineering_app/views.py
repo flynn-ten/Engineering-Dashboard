@@ -1,7 +1,4 @@
 from django.contrib.auth.models import User
-from django.db import connection
-from django.http import JsonResponse
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,6 +11,7 @@ from django.http import JsonResponse
 from django.db import connection
 import pandas as pd
 from rest_framework.decorators import api_view
+from django.conf import settings
 
 
 
@@ -69,6 +67,7 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        print("DEBUG:", request.user, request.user.userprofile.role)
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
 
@@ -98,12 +97,10 @@ class RegisterUserView(APIView):
         user.first_name = full_name
         user.save()
 
-        UserProfile.objects.create(
-            user=user,
-            full_name=full_name,
-            role=role,
-            division=division if role == "requester" else ""
-        )
+        if role == "requester":
+            UserProfile.objects.create(user=user, full_name=full_name, role=role, division=division)
+        else:
+            UserProfile.objects.create(user=user, full_name=full_name, role=role)
 
         return Response({"message": "User created"}, status=201)
 
@@ -122,130 +119,174 @@ class UserListView(APIView):
         serializer = UserProfileWithUserSerializer(profiles, many=True)
         return Response(serializer.data)
 
-
 class UserStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         users = User.objects.all()
+        total_users = users.count()
+        active_users = users.filter(userprofile__status="Active").count()
+
         return Response({
-            "total_users": users.count(),
-            "active_users": users.filter(userprofile__status="Active").count()
+            "total_users": total_users,
+            "active_users": active_users
         })
-
-
-# ----------------------------
-# 📊 SQL Raw Queries
-# ----------------------------
-
 def active_work_orders(request):
+    # Raw SQL to query active work orders
     with connection.cursor() as cursor:
         cursor.execute("""
-            WITH weekly_complete AS (
-                SELECT
-                    EXTRACT(YEAR FROM wo_created_date)::INT AS year,
-                    EXTRACT(MONTH FROM wo_created_date)::INT AS month,
-                    FLOOR((EXTRACT(DAY FROM wo_created_date) - 1) / 7) + 1 AS week_of_month,
-                    COUNT(*) AS released_count
-                FROM main_data
-                WHERE wo_status = 'Released'
-                GROUP BY year, month, week_of_month
-            )
+        WITH weekly_complete AS (
             SELECT
-                year, month, week_of_month, released_count,
-                LAG(released_count) OVER (PARTITION BY year, month ORDER BY week_of_month) AS last_week_count,
-                released_count - COALESCE(LAG(released_count) OVER (PARTITION BY year, month ORDER BY week_of_month), 0) AS diff_from_last_week
+                EXTRACT(YEAR FROM wo_created_date)::INT AS year,
+                EXTRACT(MONTH FROM wo_created_date)::INT AS month,
+                FLOOR((EXTRACT(DAY FROM wo_created_date) - 1) / 7) + 1 AS week_of_month,
+                COUNT(*) AS released_count
+            FROM main_data
+            WHERE wo_status = 'Released'
+            GROUP BY year, month, week_of_month
+            )
+
+            SELECT
+            year,
+            month,
+            week_of_month,
+            released_count,
+            LAG(released_count) OVER (
+                PARTITION BY year, month
+                ORDER BY week_of_month
+            ) AS last_week_count,
+            released_count - COALESCE(
+                LAG(released_count) OVER (
+                PARTITION BY year, month
+                ORDER BY week_of_month
+                ), 0
+            ) AS diff_from_last_week
             FROM weekly_complete
             ORDER BY year DESC, month DESC, week_of_month DESC;
         """)
         rows = cursor.fetchall()
 
-    result = [
-        {
-            "year": row[0], "month": row[1], "week_of_month": row[2],
-            "released_count": row[3], "last_week_count": row[4], "diff_from_last_week": row[5]
-        } for row in rows
-    ]
-    return JsonResponse(result, safe=False)
-
+    # Return results as JSON
+    complete = [{"year": row[0], "month": row[1], "week_of_month": row[2], "released_count": row[3], "last_week_count": row[4], "diff_from_last_week": row[5]} for row in rows]
+    return JsonResponse(complete, safe=False)
 
 def unreleased_work_orders(request):
+    # Raw SQL to query unreleased work orders
     with connection.cursor() as cursor:
         cursor.execute("""
             WITH weekly_complete AS (
-                SELECT
-                    EXTRACT(YEAR FROM wo_created_date)::INT AS year,
-                    EXTRACT(MONTH FROM wo_created_date)::INT AS month,
-                    FLOOR((EXTRACT(DAY FROM wo_created_date) - 1) / 7) + 1 AS week_of_month,
-                    COUNT(*) AS unreleased_count
-                FROM main_data
-                WHERE wo_status = 'Unreleased'
-                GROUP BY year, month, week_of_month
-            )
             SELECT
-                year, month, week_of_month, unreleased_count,
-                LAG(unreleased_count) OVER (PARTITION BY year, month ORDER BY week_of_month) AS last_week_count,
-                unreleased_count - COALESCE(LAG(unreleased_count) OVER (PARTITION BY year, month ORDER BY week_of_month), 0) AS diff_from_last_week_unreleased
+                EXTRACT(YEAR FROM wo_created_date)::INT AS year,
+                EXTRACT(MONTH FROM wo_created_date)::INT AS month,
+                FLOOR((EXTRACT(DAY FROM wo_created_date) - 1) / 7) + 1 AS week_of_month,
+                COUNT(*) AS unreleased_count
+            FROM main_data
+            WHERE wo_status = 'Unreleased'
+            GROUP BY year, month, week_of_month
+            )
+
+            SELECT
+            year,
+            month,
+            week_of_month,
+            unreleased_count,
+            LAG(unreleased_count) OVER (
+                PARTITION BY year, month
+                ORDER BY week_of_month
+            ) AS last_week_count,
+            unreleased_count - COALESCE(
+                LAG(unreleased_count) OVER (
+                PARTITION BY year, month
+                ORDER BY week_of_month
+                ), 0
+            ) AS diff_from_last_week_unreleased
             FROM weekly_complete
-            ORDER BY year DESC, month DESC, week_of_month DESC;
+            ORDER BY year DESC, month DESC, week_of_month DESC
         """)
         rows = cursor.fetchall()
 
-    result = [
-        {
-            "year": row[0], "month": row[1], "week_of_month": row[2],
-            "unreleased_count": row[3], "last_week_count": row[4], "diff_from_last_week_unreleased": row[5]
-        } for row in rows
-    ]
-    return JsonResponse(result, safe=False)
-
+    # Return results as JSON
+    unreleased = [{"year": row[0], "month": row[1], "week_of_month": row[2], "unreleased_count": row[3], "last_week_count": row[4], "diff_from_last_week_unreleased": row[5]} for row in rows]
+    return JsonResponse(unreleased, safe=False)
 
 def work_order_list(request):
+    # Raw SQL to query work orders
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT
-                no, title, wo_created_date, wo_status, resource,
-                wo_description, wo_type, wr_requestor, wo_actual_completion_date,
-                actual_duration, EXTRACT(YEAR FROM wo_created_date),
-                EXTRACT(MONTH FROM wo_created_date),
-                FLOOR((EXTRACT(DAY FROM wo_created_date) - 1) / 7) + 1
-            FROM main_data
-            ORDER BY wo_created_date DESC;
+            no,
+            title,
+            wo_created_date,
+            wo_status,
+            resource,
+            wo_description,
+            wo_type,
+            wr_requestor,
+            wo_actual_completion_date,
+            actual_duration,
+            EXTRACT(YEAR FROM wo_created_date) AS year,
+            EXTRACT(MONTH FROM wo_created_date) AS month,
+            FLOOR((EXTRACT(DAY FROM wo_created_date) - 1) / 7) + 1 AS week_of_month
+        FROM main_data
+        ORDER BY wo_created_date DESC;
         """)
         rows = cursor.fetchall()
 
-    result = [
+    # Return results as JSON
+    work_orders = [
         {
-            "no": row[0], "title": row[1], "wo_created_date": row[2], "wo_status": row[3],
-            "resource": row[4], "wo_description": row[5], "wo_type": row[6], "wr_requestor": row[7],
-            "wo_actual_completion_date": row[8], "actual_duration": row[9],
-            "year": row[10], "month": row[11], "week_of_month": row[12]
-        } for row in rows
+            "no": row[0],
+            "title": row[1],
+            "wo_created_date": row[2],
+            "wo_status": row[3],
+            "resource": row[4],
+            "wo_description": row[5],
+            "wo_type": row[6],
+            "wr_requestor": row[7],
+            "wo_actual_completion_date": row[8],
+            "actual_duration": row[9],
+            "year": row[10],
+            "month": row[11],
+            "week_of_month": row[12]
+        }
+        for row in rows
     ]
-    return JsonResponse(result, safe=False)
-
+    return JsonResponse(work_orders, safe=False)
 
 def work_request_list(request):
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT
-                wr_number, title, wo_description, resource, wr_type,
-                wr_request_by_date, wr_requestor,
-                EXTRACT(YEAR FROM wr_request_by_date),
-                EXTRACT(MONTH FROM wr_request_by_date),
-                FLOOR((EXTRACT(DAY FROM wr_request_by_date) - 1) / 7) + 1
+           SELECT
+                wr_number,
+                title,
+                wo_description,
+                resource,
+                wr_type,
+                wr_request_by_date,
+                wr_requestor,
+                EXTRACT(YEAR FROM wr_request_by_date) AS year,
+                EXTRACT(MONTH FROM wr_request_by_date) AS month,
+                FLOOR((EXTRACT(DAY FROM wr_request_by_date) - 1) / 7) + 1 AS week_of_month
             FROM main_data
-            WHERE wr_request_by_date IS NOT NULL
+            WHERE wr_request_by_date is not null
             ORDER BY wr_request_by_date DESC;
         """)
         rows = cursor.fetchall()
 
-    result = [
+    work_request = [
         {
-            "wr_number": row[0], "title": row[1], "wo_description": row[2], "resource": row[3],
-            "wr_type": row[4], "wo_request_by_date": row[5], "wr_requestor": row[6],
-            "year": row[7], "month": row[8], "week_of_month": row[9]
-        } for row in rows
+            "wr_number": row[0],
+            "title": row[1],
+            "wo_description": row[2],
+            "resource": row[3],
+            "wr_type": row[4],
+            "wo_request_by_date": row[5],
+            "wr_requestor": row[6],
+            "year": row[7],
+            "month": row[8],
+            "week_of_month": row[9]
+        }
+        for row in rows
     ]
     return JsonResponse(work_request, safe=False)
 
@@ -640,4 +681,173 @@ ORDER BY date ASC;
 
     return JsonResponse(result, safe=False)
 
-  
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from rest_framework.parsers import MultiPartParser, FormParser
+from .models import EnergyInput
+from .serializers import EnergyInputSerializer
+
+class EnergyInputCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = EnergyInputSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserEnergyInputListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        inputs = EnergyInput.objects.filter(user=request.user).order_by('-created_at')
+        serializer = EnergyInputSerializer(inputs, many=True)
+        return Response(serializer.data)
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from .models import EnergyInput
+from .serializers import EnergyInputSerializer
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def latest_energy_inputs(request):
+    latest_inputs = EnergyInput.objects.filter(user=request.user).order_by('-created_at')[:5]
+    serializer = EnergyInputSerializer(latest_inputs, many=True)
+    return Response(serializer.data)
+
+# views.py
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenObtainPairSerializer
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import UserProfile
+
+class UserStatusUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        user_profile = getattr(user, "userprofile", None)
+
+        if not user_profile:
+            return Response({"error": "UserProfile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get("status")
+        if new_status not in ["Active", "Inactive"]:
+            return Response({"error": "Invalid status value."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_profile.status = new_status
+        user_profile.save()
+
+        return Response({"message": f"User status updated to {new_status}."}, status=status.HTTP_200_OK)
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
+
+class ResetUserPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        print("DEBUG Request data:", request.data)  # untuk debug console
+
+        user = get_object_or_404(User, pk=pk)
+        new_password = request.data.get("new_password")
+
+        if not new_password:
+            return Response({"error": "New password is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if len(new_password) < 6:
+            return Response({"error": "Password must be at least 6 characters."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password successfully updated."}, status=status.HTTP_200_OK)
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from .models import Document
+from .serializers import DocumentSerializer
+
+class DocumentUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = DocumentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(uploaded_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class DocumentListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        docs = Document.objects.all().order_by('-uploaded_at')
+        serializer = DocumentSerializer(docs, many=True)
+        return Response(serializer.data)
+
+
+
+def submit_energy_data(request):
+    data = request.data
+    # Simpan data ke database atau validasi
+    # Kirim email menggunakan send_mail atau service email lain
+
+    send_mail(
+        subject=f"Data {data['type']} telah ditambahkan",
+        message=f"""Data baru telah dikirim:
+Tanggal: {data['date']}
+Konsumsi: {data['value']}
+Meter: {data['meter_number']}
+""",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[data['email_recipient']],
+        fail_silently=False,
+    )
+    return Response({"message": "Email sent and data saved successfully"}, status=200)
+
+from django.core.mail import send_mail
+from rest_framework.response import Response
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def energy_submit(request):
+    try:
+        data = request.data
+        type = data.get("type")
+        date = data.get("date")
+        value = data.get("value")
+        meter_number = data.get("meter_number")
+        email = data.get("email_recipient")
+
+        # ✅ Kirim email saja, tidak ada penyimpanan
+        send_mail(
+            subject=f"Laporan Energi - {type}",
+            message=f"📊 Jenis: {type}\n📅 Tanggal: {date}\n🔢 Nilai: {value}\n🔌 No Meter: {meter_number}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+
+        return Response({"message": "Email sent!"})
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
