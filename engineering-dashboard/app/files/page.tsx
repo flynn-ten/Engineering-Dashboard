@@ -70,31 +70,34 @@ export default function FilesPage() {
   const [selectedDepartment, setSelectedDepartment] = useState("all");
 
   const refreshAccessToken = async () => {
-    try {
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-
-      const res = await fetch("http://localhost:8000/api/token/refresh/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to refresh token");
-      }
-
-      const data = await res.json();
-      localStorage.setItem("accessToken", data.access);
-      return data.access;
-    } catch (error) {
-      console.error("Token refresh failed:", error);
-      router.push("/login");
-      return null;
+  try {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) {
+      throw new Error("No refresh token available");
     }
-  };
+
+    const res = await fetch("http://localhost:8000/api/token/refresh/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to refresh token");
+    }
+
+    const data = await res.json();
+    localStorage.setItem("accessToken", data.access);
+    return data.access;
+  } catch (error) {
+    console.error("Token refresh failed:", error);
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    router.push("/login");  // fallback
+    return null;
+  }
+};
+
 
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     try {
@@ -181,7 +184,29 @@ export default function FilesPage() {
     setFormData(prev => ({ ...prev, file_name: file.name }));
   };
 
-  
+  const handleDelete = async (documentId: string, file_url: string) => {
+  if (!confirm("Are you sure you want to delete this document?")) return;
+
+  try {
+    const res = await fetchWithAuth(`http://localhost:8000/api/documents/${documentId}/`, {
+      method: "DELETE"
+    });
+
+    if (res.ok) {
+      // Refresh files list after deletion
+      const filesRes = await fetchWithAuth("http://localhost:8000/api/documents/");
+      const filesData = await filesRes.json();
+      setFilesData(filesData);
+      alert("Document deleted successfully");
+    } else {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to delete document");
+    }
+  } catch (error) {
+    console.error("Delete error:", error);
+    alert(error.message || "Failed to delete document. Please try again.");
+  }
+};
   const handleUpload = async () => {
     if (!selectedFile) {
       alert("Please choose a file");
@@ -429,9 +454,12 @@ export default function FilesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit Metadata</DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                              <DropdownMenuItem 
+  className="text-red-600" 
+  onClick={() => handleDelete(file.id, file.file_url)}
+>
+  Delete
+</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}

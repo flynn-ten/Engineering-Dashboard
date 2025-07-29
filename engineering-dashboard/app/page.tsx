@@ -1,20 +1,25 @@
 "use client";
 
-import { act, use, useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Clock, Zap, Wrench } from "lucide-react";
+import { AlertTriangle, Zap, Wrench, Download } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell
 } from "recharts";
 import { RoleIndicator } from "@/components/role-indicator";
+import { Button } from "@/components/ui/button";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 export default function Dashboard() {
   const router = useRouter();
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  
+  // State declarations
   const [currentUser, setCurrentUser] = useState(null);
   const [role, setRole] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -22,48 +27,91 @@ export default function Dashboard() {
   const [lastWeekChange, setLastWeekChange] = useState(0);
   const [unreleasedWorkOrders, setUnreleasedWorkOrders] = useState(0);
   const [unreleasedLastWeekChange, setUnreleasedLastWeekChange] = useState(0);
-  const [wo_no, setWo_no] = useState(null);
-  const [title, setTitle] = useState("");
-  const [wo_created_date, setWo_created_date] = useState("");
-  const [wo_status, setWo_status] = useState("");
-  const [wo_description, setWo_description] = useState("");
-  const [wo_type, setWo_type] = useState("");
-  const [wr_requestor, setWr_requestor] = useState("");
-  const [wo_actual_completion_date, setWo_actual_completion_date] = useState("");
-  const [actual_duration, setActual_duration] = useState(null);
-  const [year, setYear] = useState(null);
-  const [month, setMonth] = useState(null);
-  const [week_of_month, setWeek_of_month] = useState<number | null>(null);
-  const [resource, setResource] = useState("");
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
-  const [mttrData, setMttrData] = useState([]);
-  const [energyData, setEnergyByDayData] = useState([]);
+  const [mttrData, setMttrData] = useState<{month: string, mttr: number, mtbf: number}[]>([]);
+  const [energyData, setEnergyByDayData] = useState<any[]>([]);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  const monthMap = {
-  "01": "Jan",
-  "02": "Feb",
-  "03": "Mar",
-  "04": "Apr",
-  "05": "Mei", // pakai "May" kalau mau English
-  "06": "Jun",
-  "07": "Jul",
-  "08": "Aug",
-  "09": "Sep",
-  "10": "Oct",
-  "11": "Nov",
-  "12": "Dec",
-};
-  
+  const monthMap: Record<string, string> = {
+    "01": "Jan", "02": "Feb", "03": "Mar", "04": "Apr", "05": "May",
+    "06": "Jun", "07": "Jul", "08": "Aug", "09": "Sep", "10": "Oct",
+    "11": "Nov", "12": "Dec",
+  };
+
   const woStatusData = [
-  { name: "Released", value: activeWorkOrders, color: "#ef4444" },
-  { name: "Unreleased", value: unreleasedWorkOrders, color: "#f59e0b" },
-];
-  
-  
+    { name: "Released", value: activeWorkOrders, color: "#ef4444" },
+    { name: "Unreleased", value: unreleasedWorkOrders, color: "#f59e0b" },
+  ];
+
+  const handleDownloadPDF = async () => {
+    if (!dashboardRef.current) return;
+
+    setIsGeneratingPDF(true);
+
+    try {
+      // Create a clone of the dashboard content
+      const element = dashboardRef.current.cloneNode(true) as HTMLElement;
+      
+      // Remove elements that shouldn't be in the PDF
+      const elementsToRemove = element.querySelectorAll(
+        '.no-print, .role-indicator, header, .pdf-exclude, button'
+      );
+      elementsToRemove.forEach(el => el.remove());
+
+      // Apply print-specific styles
+      element.style.padding = '20px';
+      element.style.width = '100%';
+      element.style.backgroundColor = 'white';
+
+      // Create a temporary container
+      const pdfContainer = document.createElement('div');
+      pdfContainer.appendChild(element);
+      pdfContainer.style.position = 'fixed';
+      pdfContainer.style.left = '-9999px';
+      pdfContainer.style.top = '0';
+      document.body.appendChild(pdfContainer);
+
+      const options = {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: true,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight
+      };
+
+      const canvas = await html2canvas(element, options);
+      document.body.removeChild(pdfContainer);
+
+      // Calculate PDF dimensions
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 190; // Reduced width for margins
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const marginLeft = 10;
+
+      // Add title and date
+      pdf.setFontSize(18);
+      pdf.setTextColor(40);
+      pdf.text('Engineering Dashboard Report', 105, 15, { align: 'center' });
+      pdf.setFontSize(12);
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, 105, 22, { align: 'center' });
+
+      // Add content with proper margins
+      pdf.addImage(imgData, 'PNG', marginLeft, 30, imgWidth, imgHeight);
+
+      pdf.save(`dashboard-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   useEffect(() => {
-    // Check for authentication and redirect if needed
     const access = localStorage.getItem("accessToken");
     const userJson = localStorage.getItem("user");
 
@@ -88,122 +136,58 @@ export default function Dashboard() {
       router.push("/login");
     }
 
-    fetch("http://localhost:8000/api/monthly-trend/")
-  .then((res) => res.json())
-  .then((data) => {
-    if (!Array.isArray(data)) {
-      console.error("Unexpected response:", data);
-      return;
-    }
+    // Fetch all data in parallel
+    const fetchData = async () => {
+      try {
+        const [
+          monthlyTrendRes,
+          energyDailyRes,
+          activeOrdersRes,
+          unreleasedOrdersRes,
+          workOrdersRes
+        ] = await Promise.all([
+          fetch("http://localhost:8000/api/monthly-trend/"),
+          fetch("http://localhost:8000/api/energydaily/"),
+          fetch("http://localhost:8000/api/active-work-orders/"),
+          fetch("http://localhost:8000/api/unreleased-work-orders/"),
+          fetch("http://localhost:8000/api/work-order-list/")
+        ]);
 
-    const transformed = data.map((item) => {
-      const monthCode = item.month?.split("-")[1]; // Pastikan item.month ada
-      return {
-        month: monthMap[monthCode] || item.month,
-        mttr: item.mttr,
-        mtbf: item.mtbf,
-      };
-    });
+        const [
+          monthlyTrendData,
+          energyDailyData,
+          activeOrdersData,
+          unreleasedOrdersData,
+          workOrdersData
+        ] = await Promise.all([
+          monthlyTrendRes.json(),
+          energyDailyRes.json(),
+          activeOrdersRes.json(),
+          unreleasedOrdersRes.json(),
+          workOrdersRes.json()
+        ]);
 
-    setMttrData(transformed);
-  })
-  .catch((err) => console.error("Monthly trend fetch error:", err));
+        // Process and set data
+        setMttrData(monthlyTrendData.map((item: any) => ({
+          month: monthMap[item.month?.split("-")[1] as keyof typeof monthMap] || item.month,
+          mttr: item.mttr,
+          mtbf: item.mtbf,
+        })));
 
-
-  fetch("http://localhost:8000/api/energydaily/")
-    .then((res) => res.json())
-    .then((data) => setEnergyByDayData(data))
-    .catch((err) => console.error("Energy by day fetch error:", err));
-
-    // Fetch Active Work Orders from Django API
-    fetch("http://localhost:8000/api/active-work-orders/")
-      .then((response) => response.json())
-      .then((data) => {
-        // Assuming data is an array of active work orders, get the first (latest) entry
-        const latestData = data[0];
-
-        setActiveWorkOrders(latestData.released_count); // Set the active work orders count
-        setLastWeekChange(latestData.diff_from_last_week); // Set the difference from the previous week
-        setIsLoading(false);
-      })
-      .catch((error) => {
+        setEnergyByDayData(energyDailyData);
+        setActiveWorkOrders(activeOrdersData[0]?.released_count || 0);
+        setLastWeekChange(activeOrdersData[0]?.diff_from_last_week || 0);
+        setUnreleasedWorkOrders(unreleasedOrdersData[0]?.unreleased_count || 0);
+        setUnreleasedLastWeekChange(unreleasedOrdersData[0]?.diff_from_last_week_unreleased || 0);
+        setWorkOrders(workOrdersData);
+      } catch (error) {
         console.error("Error fetching data:", error);
-        setIsLoading(false);
-      });
-      
-  }, []);
-
-  //fetch unreleased work orders
-  useEffect(() => {
-    fetch("http://localhost:8000/api/unreleased-work-orders/")
-      .then((response) => response.json())
-      .then((data) => {
-        // Assuming data is an array of active work orders, get the first (latest) entry
-        const latestData = data[0];
-
-        setUnreleasedWorkOrders(latestData.unreleased_count); // Set the unreleased work orders count
-        setUnreleasedLastWeekChange(latestData.diff_from_last_week_unreleased); // Set the difference from the previous week
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-        setIsLoading(false);
-      });
-  }, []);
-
-    // Fetch Work Orders data
-    useEffect(() => {
-        fetch("http://localhost:8000/api/work-order-list/")
-          .then((response) => response.json())
-          .then((data) => {
-            setWorkOrders(data);
-            setIsLoading(false);
-            if (data.length > 0) {
-              const latestData = data[0];
-              setWo_no(latestData.no);
-              setTitle(latestData.title);
-              setWo_created_date(latestData.wo_created_date);
-              setWo_status(latestData.wo_status);
-              setResource(latestData.resource);
-              setWo_description(latestData.wo_description);
-              setWo_type(latestData.wo_type);
-              setWr_requestor(latestData.wr_requestor);
-              setWo_actual_completion_date(latestData.wo_actual_completion_date);
-              setActual_duration(latestData.actual_duration);
-              setYear(latestData.year);
-              setMonth(latestData.month);
-              setWeek_of_month(latestData.week_of_month);
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching data:", error);
-            setIsLoading(false);
-          });
-      }, []);
-    
-      // Filter work orders based on week selection
-      useEffect(() => {
-      // First filter by week_of_month if it's not null
-      let filteredData = workOrders;
-      if (week_of_month !== null) {
-        filteredData = filteredData.filter((wo) => wo.week_of_month === week_of_month);
       }
-    
-      // Then filter by year if it's not null
-      if (year !== null) {
-        filteredData = filteredData.filter((wo) => wo.year === year);
-      }
-    
-      if (month !== null) {
-        filteredData = filteredData.filter((wo) => wo.month === month);
-      }
-    
-      // Set filtered work orders after both filters are applied
-      setFilteredWorkOrders(filteredData);
+    };
 
-    }, [year, month, week_of_month, workOrders]);
+    fetchData();
 
-  useEffect(() => {
+    // Set up Supabase realtime subscription
     const channel = supabase
       .channel('work_orders_changes')
       .on(
@@ -214,55 +198,59 @@ export default function Dashboard() {
           table: 'main_data',
         },
         (payload) => {
-          console.log("Change detected:", payload);
-          // Handle data changes
-          // Re-fetch or update the state based on the change type (INSERT, UPDATE, DELETE)
           if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
             fetch("http://localhost:8000/api/active-work-orders/")
               .then((response) => response.json())
               .then((data) => {
-                const latestData = data[0];
-                setActiveWorkOrders(latestData.released_count);
-                setLastWeekChange(latestData.diff_from_last_week);
+                setActiveWorkOrders(data[0]?.released_count || 0);
+                setLastWeekChange(data[0]?.diff_from_last_week || 0);
               });
           }
         }
       )
       .subscribe();
-      
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
 
+  useEffect(() => {
+    let filteredData = workOrders;
+    setFilteredWorkOrders(filteredData);
+  }, [workOrders]);
+
   if (isLoading) {
-    return <div className="p-8 text-muted-foreground text-center">⏳ Mengalihkan ke dashboard...</div>;
+    return <div className="p-8 text-muted-foreground text-center">⏳ Loading dashboard...</div>;
   }
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 no-print">
         <div className="flex flex-1 items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">Engineering Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Selamat datang di platform monitoring teknis terintegrasi</p>
+            <p className="text-sm text-muted-foreground">Integrated technical monitoring platform</p>
           </div>
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-green-600 border-green-600">
-              System Online
-            </Badge>
+            {role === "admin" && (
+              <Button 
+                variant="outline" 
+                onClick={handleDownloadPDF}
+                className="flex items-center gap-2 no-print"
+                disabled={isGeneratingPDF}
+              >
+                <Download className="h-4 w-4" />
+                {isGeneratingPDF ? "Generating PDF..." : "Download PDF"}
+              </Button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 space-y-6 p-6">
-        {/* Role Indicator */}
-        {role && <RoleIndicator currentRole={role} />}
+      <main className="flex-1 space-y-6 p-6" ref={dashboardRef}>
+        {role && <RoleIndicator currentRole={role} className="no-print" />}
 
-        {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -272,7 +260,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{activeWorkOrders}</div>
               <p className="text-xs text-muted-foreground">
-                <span className={`text-${lastWeekChange >= 0 ? "green" : "red"}-500`}>
+                <span className={`${lastWeekChange >= 0 ? "text-green-500" : "text-red-500"}`}>
                   {lastWeekChange >= 0 ? `+${lastWeekChange} ` : lastWeekChange}
                 </span>
                 from last week
@@ -282,13 +270,13 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Unrelease Work Orders</CardTitle>
+              <CardTitle className="text-sm font-medium">Unreleased Work Orders</CardTitle>
               <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{unreleasedWorkOrders}</div>
               <p className="text-xs text-muted-foreground">
-                <span className={`text-${unreleasedLastWeekChange >= 0 ? "green" : "red"}-500`}>
+                <span className={`${unreleasedLastWeekChange >= 0 ? "text-green-500" : "text-red-500"}`}>
                   {unreleasedLastWeekChange >= 0 ? `+${unreleasedLastWeekChange} ` : unreleasedLastWeekChange}
                 </span>
                 from last week
@@ -304,7 +292,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="text-2xl font-bold">87%</div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-500">+5%</span> dari bulan lalu
+                <span className="text-green-500">+5%</span> from last month
               </p>
             </CardContent>
           </Card>
@@ -316,18 +304,16 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">Perlu tindakan segera</p>
+              <p className="text-xs text-muted-foreground">Requires immediate action</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Charts */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {/* Energy Consumption Chart */}
           <Card className="col-span-2">
             <CardHeader>
-              <CardTitle>Konsumsi Energi Mingguan</CardTitle>
-              <CardDescription>Monitoring konsumsi listrik, air, dan CNG</CardDescription>
+              <CardTitle>Weekly Energy Consumption</CardTitle>
+              <CardDescription>Monitoring electricity, water, and CNG usage</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -344,11 +330,10 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* WO Status Pie Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Status Work Orders</CardTitle>
-              <CardDescription>Distribusi status WO aktif</CardDescription>
+              <CardTitle>Work Order Status</CardTitle>
+              <CardDescription>Distribution of active work orders</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -384,11 +369,10 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* MTTR/MTBF Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Analisis MTTR & MTBF</CardTitle>
-            <CardDescription>Mean Time To Repair dan Mean Time Between Failures (6 bulan terakhir)</CardDescription>
+            <CardTitle>MTTR & MTBF Analysis</CardTitle>
+            <CardDescription>Mean Time To Repair and Mean Time Between Failures (last 6 months)</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -398,58 +382,54 @@ export default function Dashboard() {
                 <YAxis yAxisId="left" />
                 <YAxis yAxisId="right" orientation="right" />
                 <Tooltip />
-                <Bar yAxisId="left" dataKey="mttr" fill="#ef4444" name="MTTR (jam)" />
-                <Bar yAxisId="right" dataKey="mtbf" fill="#10b981" name="MTBF (jam)" />
+                <Bar yAxisId="left" dataKey="mttr" fill="#ef4444" name="MTTR (hours)" />
+                <Bar yAxisId="right" dataKey="mtbf" fill="#10b981" name="MTBF (hours)" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Recent WO & Notifications */}
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Recent Work Orders */}
           <Card>
             <CardHeader>
-              <CardTitle>Work Orders Terbaru</CardTitle>
-              <CardDescription>{filteredWorkOrders.length} WO terakhir yang dibuat</CardDescription>
+              <CardTitle>Recent Work Orders</CardTitle>
+              <CardDescription>{filteredWorkOrders.length} most recent work orders</CardDescription>
             </CardHeader>
-           <CardContent className="space-y-4">
-            {filteredWorkOrders.length === 0 ? (
-              <div>No work orders found for the selected filters.</div>
-            ) : (
-              filteredWorkOrders.map((wo) => (
-                <div key={wo.no} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{wo.title}</p>
-                    <p className="text-xs text-muted-foreground">{wo.no}</p>
+            <CardContent className="space-y-4">
+              {filteredWorkOrders.length === 0 ? (
+                <div>No work orders found</div>
+              ) : (
+                filteredWorkOrders.slice(0, 5).map((wo) => (
+                  <div key={wo.no} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{wo.title}</p>
+                      <p className="text-xs text-muted-foreground">{wo.no}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={wo.wo_status === "Completed" ? "default" : "outline"}
+                        className={wo.wo_status === "Completed" ? "bg-green-100 text-green-800" : ""}
+                      >
+                        {wo.wo_status}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={wo.wo_status === "Completed" ? "default" : "outline"}
-                      className={wo.wo_status === "Completed" ? "bg-green-100 text-green-800" : ""}
-                    >
-                      {wo.wo_status}
-                    </Badge>
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-
+                ))
+              )}
+            </CardContent>
           </Card>
 
-          {/* Notifications */}
           <Card>
             <CardHeader>
-              <CardTitle>Notifikasi & Peringatan</CardTitle>
-              <CardDescription>Peringatan sistem terbaru</CardDescription>
+              <CardTitle>Notifications & Alerts</CardTitle>
+              <CardDescription>Recent system alerts</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                { type: "warning", title: "Konsumsi Listrik Tinggi", message: "Konsumsi listrik hari ini melebihi budget 15%", time: "2 jam lalu" },
-                { type: "error", title: "CAPA Overdue", message: "3 CAPA melewati due date dan perlu tindakan", time: "4 jam lalu" },
-                { type: "info", title: "WO Completed", message: "WO-2024-003 telah diselesaikan oleh teknisi", time: "6 jam lalu" },
-                { type: "warning", title: "Maintenance Schedule", message: "Jadwal maintenance preventif besok pagi", time: "1 hari lalu" },
+                { type: "warning", title: "High Electricity Usage", message: "Today's consumption exceeds budget by 15%", time: "2 hours ago" },
+                { type: "error", title: "CAPA Overdue", message: "3 CAPAs past due date require action", time: "4 hours ago" },
+                { type: "info", title: "WO Completed", message: "WO-2024-003 completed by technician", time: "6 hours ago" },
+                { type: "warning", title: "Maintenance Schedule", message: "Preventive maintenance scheduled for tomorrow", time: "1 day ago" },
               ].map((notif, index) => (
                 <div key={index} className="flex items-start gap-3 p-3 border rounded-lg">
                   <div className={`mt-0.5 w-2 h-2 rounded-full ${
@@ -466,6 +446,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
       </main>
     </div>
   );

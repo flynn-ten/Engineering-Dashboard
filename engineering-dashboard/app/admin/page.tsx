@@ -130,22 +130,73 @@ export default function AdminPage() {
   }
 
   const getRoleColor = (role: string) => {
-    switch (role) {
-      case "Admin":
-        return "destructive"
-      case "Engineering Staff":
-        return "default"
-      case "QAC":
-        return "secondary"
-      case "Utility Team":
-        return "outline"
-      case "Division User":
-        return "outline"
-      default:
-        return "outline"
-    }
+  switch (role.toLowerCase()) {
+    case "admin":
+      return "destructive"; // Merah
+    case "engineering staff":
+    case "engineer":
+      return "default";     // Biru default
+    case "qac":
+      return "secondary";   // Abu-abu
+    case "utility team":
+    case "utility":
+      return "outline";    // Outline biru
+    case "division user":
+    case "requester":
+      return "outline";    // Outline biru
+    default:
+      return "outline";
   }
-  
+};
+
+  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  try {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      throw new Error("No access token");
+    }
+
+    let res = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    // If token expired, try to refresh
+    if (res.status === 401) {
+      const refreshToken = localStorage.getItem("refreshToken");
+      const refreshRes = await fetch("http://localhost:8000/api/token/refresh/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
+
+      if (!refreshRes.ok) {
+        throw new Error("Failed to refresh token");
+      }
+
+      const data = await refreshRes.json();
+      localStorage.setItem("accessToken", data.access);
+      
+      res = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          Authorization: `Bearer ${data.access}`,
+        },
+      });
+    }
+
+    return res;
+  } catch (error) {
+    console.error("Fetch error:", error);
+    throw error;
+  }
+};
   const resetUserPassword = async (id: number, newPassword: string) => {
     const access = localStorage.getItem("accessToken")
 
@@ -233,33 +284,49 @@ export default function AdminPage() {
     fetchUsers();
   }, []);
 
-  const toggleUserStatus = async (userId: number, currentStatus: string) => {
-    try {
-      const token = localStorage.getItem("accessToken");
-      const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+  const [isUpdating, setIsUpdating] = useState(false);
 
-      const res = await fetch(`http://localhost:8000/api/users/${userId}/status/`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
+const toggleUserStatus = async (userId: number, currentStatus: string) => {
+  if (!confirm(`Are you sure you want to ${currentStatus === "Active" ? "deactivate" : "activate"} this user?`)) {
+    return;
+  }
 
-      if (!res.ok) {
-        throw new Error(`Failed to update user status: ${res.status}`);
-      }
+  setIsUpdating(true);
+  try {
+    const res = await fetchWithAuth(`http://localhost:8000/api/users/${userId}/status/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        status: currentStatus === "Active" ? "Inactive" : "Active" 
+      }),
+    });
 
-      const updatedUsers = usersData.map((u) =>
-        u.id === userId ? { ...u, status: newStatus } : u
-      );
-      setUsersData(updatedUsers);
-    } catch (error) {
-      console.error("Error updating user status:", error);
-      alert("Failed to update user status");
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Failed to update status");
     }
-  };
+
+    const data = await res.json();
+
+    // Update state lokal
+    setUsersData(prevUsers => 
+      prevUsers.map(user => 
+        user.id === userId ? { 
+          ...user, 
+          status: data.status,
+          is_active: data.is_active 
+        } : user
+      )
+    );
+
+    alert(`User status updated to ${data.status}`);
+  } catch (error) {
+    console.error("Update error:", error);
+    alert(error.message || "Failed to update user status");
+  } finally {
+    setIsUpdating(false);
+  }
+};
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -370,10 +437,10 @@ export default function AdminPage() {
                     <SelectContent>
                       <SelectItem value="all">All Roles</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="engineering staff">Engineering Staff</SelectItem>
+                      <SelectItem value="engineer">Engineering Staff</SelectItem>
                       <SelectItem value="qac">QAC</SelectItem>
-                      <SelectItem value="utility team">Utility Team</SelectItem>
-                      <SelectItem value="division user">Division User</SelectItem>
+                      <SelectItem value="utility">Utility Team</SelectItem>
+                      <SelectItem value="requester">Division User</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -410,7 +477,10 @@ export default function AdminPage() {
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold">{user.full_name}</h3>
                             <Badge variant={getRoleColor(user.role)}>{user.role}</Badge>
-                            <Badge className={getStatusColor(user.status)}>{user.status}</Badge>
+                            <Badge className={user.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+  {user.is_active ? "Active" : "Inactive"}
+</Badge>
+
                           </div>
                           <p className="text-sm text-muted-foreground">{user.email}</p>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -435,11 +505,12 @@ export default function AdminPage() {
                               Reset Password
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              className={user.status === "Active" ? "text-red-600" : "text-green-600"}
-                              onClick={() => toggleUserStatus(user.id, user.status)}
-                            >
-                              {user.status === "Active" ? "Deactivate" : "Activate"}
-                            </DropdownMenuItem>
+      className={user.status === "Active" ? "text-red-600" : "text-green-600"}
+      onClick={() => toggleUserStatus(user.id, user.status)}
+      disabled={isUpdating}
+    >
+      {user.status === "Active" ? "Deactivate" : "Activate"}
+    </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
