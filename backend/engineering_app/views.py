@@ -1,6 +1,7 @@
 import datetime
 import time
 import uuid
+from django.utils.timezone import now
 from django.utils import timezone  # Tambahan dari baru
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
@@ -98,7 +99,7 @@ class SendDailyReportAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=500)
             
-            
+
 class AuditTrailListView(APIView):
     permission_classes = [IsAuthenticated]
 

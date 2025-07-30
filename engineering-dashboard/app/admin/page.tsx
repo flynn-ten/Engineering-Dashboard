@@ -82,22 +82,21 @@ const handleSendReport = async () => {
     const res = await fetch("http://localhost:8000/api/send-daily-report/", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
-
+    const result = await res.json();
     if (res.ok) {
-      alert("Laporan berhasil dikirim!");
+      alert(result.message);
     } else {
-      const data = await res.json();
-      console.error("Gagal kirim laporan:", data);
-      alert("Gagal kirim laporan!");
+      alert("Gagal mengirim laporan: " + result.error);
     }
   } catch (err) {
-    console.error("Error kirim email:", err);
-    alert("Terjadi error saat mengirim laporan.");
+    console.error("Gagal mengirim laporan:", err);
+    alert("Terjadi kesalahan saat mengirim laporan.");
   }
 };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {

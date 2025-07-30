@@ -183,4 +183,4 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'onlystandy@gmail.com'
 EMAIL_HOST_PASSWORD = 'eyvq ehml wmld mmvp'  # ← App Password dari Google
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-REPORT_RECIPIENT_EMAIL = "onlystandy@gmail.com"
+REPORT_RECIPIENT_EMAIL = "cecilyacarolines@gmail.com"
