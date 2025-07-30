@@ -1,4 +1,4 @@
-  "use client";
+"use client";
 
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
   import { Badge } from "@/components/ui/badge";
@@ -48,8 +48,9 @@
     asset_number: "",
     actual_failure_date: "",
     completion_by_date: "",
-    urgency: "medium",       // ✅ default value biar gak error
-    wr_type: "repair",       // ✅ default value biar gak error
+    urgency: "",       // ✅ default value biar gak error
+    wr_type: "",       // ✅ default value biar gak error
+    
   });
     const formatDateToYYYYMMDD = (date: string | Date) => {
     if (!date) return null;
@@ -65,51 +66,51 @@
 
     const assetsByDepartment = {
       EN: [
-        { id: "EN-001", name: "Generator Utama", description: "Generator 500KVA" },
-        { id: "EN-002", name: "Pompa Air Utama", description: "Pompa Centrifugal 100HP" },
-        { id: "EN-003", name: "Kompresor Udara", description: "Kompresor Screw 75HP" },
-        { id: "EN-004", name: "Panel Listrik Utama", description: "Panel MDP 2000A" },
-        { id: "EN-005", name: "Cooling Tower", description: "Cooling Tower 200RT" },
+        { id: "C-1007" },
+        { id: "C-1008" },
+        { id: "C-1009"},
+        { id: "C-1010"},
+        { id: "C-1011"},
       ],
       GA: [
-        { id: "GA-001", name: "AC Central Lobby", description: "AC VRV 20PK" },
-        { id: "GA-002", name: "Lift Penumpang", description: "Lift 8 Orang" },
-        { id: "GA-003", name: "CCTV System", description: "CCTV 32 Channel" },
-        { id: "GA-004", name: "Fire Alarm Panel", description: "Fire Alarm Addressable" },
-        { id: "GA-005", name: "Access Control", description: "Card Reader System" },
+        { id: "07-BMS-1"},
+        { id: "07-BMS-2"},
+        { id: "07-BMS-3"},
+        { id: "07-BMS-4"},
+        { id: "07-BMS-5"},
       ],
       PD: [
-        { id: "PD-001", name: "Mesin Produksi Line 1", description: "Injection Molding 250T" },
-        { id: "PD-002", name: "Conveyor Belt A", description: "Belt Conveyor 50m" },
-        { id: "PD-003", name: "Robot Welding", description: "Welding Robot 6-Axis" },
-        { id: "PD-004", name: "Oven Curing", description: "Industrial Oven 200°C" },
-        { id: "PD-005", name: "Packaging Machine", description: "Auto Packaging Line" },
+        { id: "PD-001" },
+        { id: "PD-002"},
+        { id: "PD-003"},
+        { id: "PD-004"},
+        { id: "PD-005"},
       ],
       QA: [
-        { id: "QA-001", name: "CMM Machine", description: "Coordinate Measuring Machine" },
-        { id: "QA-002", name: "Hardness Tester", description: "Rockwell Hardness Tester" },
-        { id: "QA-003", name: "Surface Roughness", description: "Surface Roughness Tester" },
-        { id: "QA-004", name: "Optical Comparator", description: "Profile Projector 300mm" },
+        { id: "QA3016-TF011"},
+        { id: "QA3016-TF012"},
+        { id: "QA3016-TF013" },
+        { id: "QA3016-TF014"},
       ],
       QC: [
-        { id: "QC-001", name: "Timbangan Digital", description: "Digital Scale 0.1mg" },
-        { id: "QC-002", name: "pH Meter", description: "Digital pH Meter" },
-        { id: "QC-003", name: "Spektrofotometer", description: "UV-Vis Spectrophotometer" },
-        { id: "QC-004", name: "Mikroskop", description: "Digital Microscope 1000x" },
-        { id: "QC-005", name: "Oven Lab", description: "Laboratory Oven 300°C" },
+        { id: "QC3016-TF011"},
+        { id: "QC3016-TF012"},
+        { id: "QC3016-TF013" },
+        { id: "QC3016-TF014"},
       ],
       RD: [
-        { id: "RD-001", name: "3D Printer", description: "Industrial 3D Printer" },
-        { id: "RD-002", name: "CAD Workstation", description: "High-End CAD Computer" },
-        { id: "RD-003", name: "Testing Equipment", description: "Material Testing Machine" },
-        { id: "RD-004", name: "Prototype Tools", description: "CNC Prototype Machine" },
+        { id: "08-BMS-1"},
+        { id: "08-BMS-2"},
+        { id: "08-BMS-3"},
+        { id: "08-BMS-4"},
+        { id: "08-BMS-5"},
       ],
       WH: [
-        { id: "WH-001", name: "Forklift Electric", description: "Electric Forklift 3T" },
-        { id: "WH-002", name: "Crane Overhead", description: "Overhead Crane 5T" },
-        { id: "WH-003", name: "Pallet Jack", description: "Manual Pallet Jack 2.5T" },
-        { id: "WH-004", name: "Conveyor System", description: "Warehouse Conveyor" },
-        { id: "WH-005", name: "Barcode Scanner", description: "Wireless Barcode Scanner" },
+        { id: "07-WH-001"},
+        { id: "07-WH-002"},
+        { id: "07-WH-003"},
+        { id: "07-WH-004"},
+        { id: "07-WH-005"},
       ],
     }
 
@@ -343,11 +344,6 @@
     }, []);
 
     // Update available assets when department changes (original logic)
-    const handleDepartmentChangeOriginal = (department) => {
-      setSelectedDepartment(department)
-      setSelectedAsset("") // Reset asset selection
-      setAvailableAssets(assetsByDepartment[department] || [])
-    }
 
     // Filter work orders based on week selection
     useEffect(() => {
@@ -399,6 +395,38 @@
           return "bg-gray-100 text-gray-800";
       }
     };
+    // Ensure arrays are always arrays for safe operations
+      const safeFilteredWorkRequest = Array.isArray(filteredWorkRequests) ? filteredWorkRequests : [];
+      const safeWorkRequests = Array.isArray(workRequests) ? workRequests : [];
+
+    // Add pagination state
+      const [currentPage, setCurrentPage] = useState(1);
+      const itemsPerPage = 10;
+    
+      // Calculate pagination data
+      const totalItems = safeFilteredWorkRequest.length;
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      const paginatedWorkRequest = safeFilteredWorkRequest.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      );
+    
+      // Pagination handlers
+      const goToPage = (page: number) => {
+        setCurrentPage(page);
+      };
+    
+      const nextPage = () => {
+        if (currentPage < totalPages) {
+          setCurrentPage(currentPage + 1);
+        }
+      };
+    
+      const prevPage = () => {
+        if (currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        }
+      };
 
     return (
       <div className="flex flex-col min-h-screen">
@@ -513,7 +541,7 @@
 
               {/* Request List */}
               <div className="space-y-4">
-                {filteredWorkRequests.map((req) => (
+                {paginatedWorkRequest.map((req) => (
                   <Card key={req.wr_number || req.id}>
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between">
@@ -525,7 +553,7 @@
                             <Badge className={getStatusColor(req.status)}>{req.status}</Badge>
                           </div>
 
-                          <p className="text-sm text-muted-foreground">{req.wo_description}</p>
+                          <p className="text-sm text-muted-foreground">{req.description}</p>
 
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div className="flex items-center gap-2">
@@ -581,6 +609,71 @@
                     </CardContent>
                   </Card>
                 ))}
+
+                {/* Pagination Component - Fixed positioning */}
+                {totalItems > itemsPerPage && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {((currentPage - 1) * itemsPerPage) + 1}–
+                      {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} work orders
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={prevPage}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+              
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={currentPage === pageNum ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => goToPage(pageNum)}
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                        {totalPages > 5 && currentPage < totalPages - 2 && (
+                          <>
+                            <span className="px-2">...</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => goToPage(totalPages)}
+                            >
+                              {totalPages}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={nextPage}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
@@ -731,11 +824,12 @@
                           <SelectValue placeholder="Pilih jenis permintaan" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="repair">Repair</SelectItem>
-                          <SelectItem value="inspection">Inspection</SelectItem>
-                          <SelectItem value="corrective">Corrective</SelectItem>
-                          <SelectItem value="modification">Modification</SelectItem>
-                          <SelectItem value="routine">Routine Check</SelectItem>
+                          <SelectItem value="calibration">Calibration</SelectItem>
+                          <SelectItem value="evaluation">Evaluation</SelectItem>
+                          <SelectItem value="planned">Planned Maintenance</SelectItem>
+                          <SelectItem value="predictive">Predictive Maintenance</SelectItem>
+                          <SelectItem value="preventive">Preventive Maintenance</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -763,7 +857,7 @@
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="completionByDate">harus beres kapan ?</Label>
+                    <Label htmlFor="completionByDate">tenggat waktu</Label>
                     <Input 
                       id="completionByDate" 
                       name="completion_by_date"
@@ -787,4 +881,3 @@
   };
 
   export default WorkRequestPage;
-

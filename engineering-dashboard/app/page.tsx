@@ -6,7 +6,8 @@ import supabase from "@/lib/supabase";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Clock, Zap, Wrench } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, Clock, Zap, Wrench, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell
@@ -62,6 +63,10 @@ export default function Dashboard() {
   const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
   const [mttrData, setMttrData] = useState([]);
   const [energyData, setEnergyByDayData] = useState([]);
+  
+  // Pagination state for work orders
+  const [currentPage, setCurrentPage] = useState(1);
+  const workOrdersPerPage = 10; // 5 per column x 2 columns
 
   const monthMap = {
   "01": "Jan",
@@ -82,7 +87,30 @@ export default function Dashboard() {
   { name: "Released", value: activeWorkOrders, color: "#ef4444" },
   { name: "Unreleased", value: unreleasedWorkOrders, color: "#f59e0b" },
 ];
+
+  // Calculate pagination values
+  const totalPages = Math.ceil(filteredWorkOrders.length / workOrdersPerPage);
+  const startIndex = (currentPage - 1) * workOrdersPerPage;
+  const endIndex = startIndex + workOrdersPerPage;
+  const currentWorkOrders = filteredWorkOrders.slice(startIndex, endIndex);
   
+  // Split current work orders into two columns
+  const leftColumnWO = currentWorkOrders.slice(0, 5);
+  const rightColumnWO = currentWorkOrders.slice(5, 10);
+
+  // Handle page navigation
+  const handlePrevPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  // Reset to first page when filtered data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredWorkOrders.length]);
   
 
   useEffect(() => {
@@ -186,7 +214,7 @@ export default function Dashboard() {
               setWo_no(latestData.no);
               setTitle(latestData.title);
               setWo_created_date(latestData.wo_created_date);
-              setWo_status(latestData.wo_status);
+              setWo_status(latestData.status);
               setResource(latestData.resource);
               setWo_description(latestData.wo_description);
               setWo_type(latestData.wo_type);
@@ -289,7 +317,7 @@ export default function Dashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Work Orders</CardTitle>
+              <CardTitle className="text-sm font-medium">Released Work Orders</CardTitle>
               <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -428,67 +456,97 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent WO & Notifications */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Recent Work Orders */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Work Orders Terbaru</CardTitle>
-              <CardDescription>{filteredWorkOrders.length} WO terakhir yang dibuat</CardDescription>
-            </CardHeader>
-           <CardContent className="space-y-4">
+        {/* Recent Work Orders - Full Width */}
+        <Card className="w-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Work Orders Terbaru</CardTitle>
+            <CardDescription className="text-sm">
+              {filteredWorkOrders.length} WO terakhir yang dibuat 
+              {totalPages > 1 && (
+                <span className="ml-2">
+                  (Halaman {currentPage} dari {totalPages})
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
             {filteredWorkOrders.length === 0 ? (
-              <div>No work orders found for the selected filters.</div>
+              <div className="text-center py-4 text-muted-foreground">No work orders found for the selected filters.</div>
             ) : (
-              filteredWorkOrders.map((wo) => (
-                <div key={wo.no} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{wo.title}</p>
-                    <p className="text-xs text-muted-foreground">{wo.no}</p>
+              <>
+                {/* Two Column Layout */}
+                <div className="grid grid-cols-2 gap-6 w-full">
+                  {/* Left Column */}
+                  <div className="space-y-2 w-full">
+                    {leftColumnWO.map((wo) => (
+                      <div key={wo.no} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors w-full">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <p className="text-sm font-medium truncate" title={wo.title}>{wo.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{wo.no}</p>
+                        </div>
+                        <Badge
+                          variant={wo.status === "Completed" ? "default" : "outline"}
+                          className={`text-xs px-2 py-1 shrink-0 ${wo.status === "Completed" ? "bg-green-100 text-green-800" : ""}`}
+                        >
+                          {wo.status}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={wo.wo_status === "Completed" ? "default" : "outline"}
-                      className={wo.wo_status === "Completed" ? "bg-green-100 text-green-800" : ""}
-                    >
-                      {wo.wo_status}
-                    </Badge>
+
+                  {/* Right Column */}
+                  <div className="space-y-2 w-full">
+                    {rightColumnWO.map((wo) => (
+                      <div key={wo.no} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors w-full">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <p className="text-sm font-medium truncate" title={wo.title}>{wo.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{wo.no}</p>
+                        </div>
+                        <Badge
+                          variant={wo.status === "Completed" ? "default" : "outline"}
+                          className={`text-xs px-2 py-1 shrink-0 ${wo.status === "Completed" ? "bg-green-100 text-green-800" : ""}`}
+                        >
+                          {wo.status}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t w-full">
+                    <div className="text-sm text-muted-foreground">
+                      Menampilkan {startIndex + 1}-{Math.min(endIndex, filteredWorkOrders.length)} dari {filteredWorkOrders.length} WO
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrevPage}
+                        disabled={currentPage === 1}
+                        className="h-8 px-3 text-sm"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Prev
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages}
+                        className="h-8 px-3 text-sm"
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
-
-          </Card>
-
-          {/* Notifications */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Notifikasi & Peringatan</CardTitle>
-              <CardDescription>Peringatan sistem terbaru</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { type: "warning", title: "Konsumsi Listrik Tinggi", message: "Konsumsi listrik hari ini melebihi budget 15%", time: "2 jam lalu" },
-                { type: "error", title: "CAPA Overdue", message: "3 CAPA melewati due date dan perlu tindakan", time: "4 jam lalu" },
-                { type: "info", title: "WO Completed", message: "WO-2024-003 telah diselesaikan oleh teknisi", time: "6 jam lalu" },
-                { type: "warning", title: "Maintenance Schedule", message: "Jadwal maintenance preventif besok pagi", time: "1 hari lalu" },
-              ].map((notif, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 border rounded-lg">
-                  <div className={`mt-0.5 w-2 h-2 rounded-full ${
-                    notif.type === "error" ? "bg-red-500" :
-                    notif.type === "warning" ? "bg-yellow-500" : "bg-blue-500"
-                  }`} />
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium">{notif.title}</p>
-                    <p className="text-xs text-muted-foreground">{notif.message}</p>
-                    <p className="text-xs text-muted-foreground">{notif.time}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+        </Card>
       </main>
     </div>
   );

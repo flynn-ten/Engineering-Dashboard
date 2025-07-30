@@ -63,8 +63,11 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
     'DEFAULT_PARSER_CLASSES': (
-        'rest_framework.parsers.JSONParser',
-    ),
+    'rest_framework.parsers.JSONParser',
+    'rest_framework.parsers.MultiPartParser',
+    'rest_framework.parsers.FormParser',
+),
+
 }
 
 MEDIA_URL = '/media/'
@@ -180,3 +183,4 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'onlystandy@gmail.com'
 EMAIL_HOST_PASSWORD = 'eyvq ehml wmld mmvp'  # ← App Password dari Google
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+REPORT_RECIPIENT_EMAIL = "onlystandy@gmail.com"

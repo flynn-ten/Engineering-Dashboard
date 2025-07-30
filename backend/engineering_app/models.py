@@ -4,6 +4,12 @@ from django.contrib.auth.models import User
 from django.db import models
 import uuid
 
+
+from django.db import models
+from django.contrib.auth.models import User
+
+
+
 # ===============================
 # User Profile
 # ===============================
@@ -42,10 +48,12 @@ class WorkRequest(models.Model):
     ]
     WR_TYPE_CHOICES = [
         ('repair', 'Repair'),
-        ('inspection', 'Inspection'),
-        ('corrective', 'Corrective'),
-        ('modification', 'Modification'),
-        ('routine', 'Routine Check'),
+        ('calibration', 'Calibration'),
+        ('evaluation', 'Evaluation'),
+        ('planned', 'Planned Maintenance'),
+        ('predictive', 'Predictive Maintenance'),
+        ('preventive', 'Preventive Maintenance'),
+        ('other', 'Other'),
     ]
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -96,9 +104,9 @@ class WorkOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
-    work_request = models.OneToOneField(WorkRequest, on_delete=models.CASCADE, related_name="work_order")
+    work_request = models.OneToOneField(WorkRequest, on_delete=models.CASCADE, related_name="work_order", null=True)
     wo_number = models.CharField(max_length=100, unique=True, editable=False)
-    wr_number = models.CharField(max_length=100, default="WR-DEFAULT")
+    wr_number = models.CharField(max_length=100, default="WR-DEFAULT", null=True, blank=True)
     title = models.CharField(max_length=255, default="No title")
     description = models.TextField(default="No description")
 
@@ -126,20 +134,18 @@ class WorkOrder(models.Model):
     actual_duration = models.DurationField(blank=True, null=True)
     requester = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     engineer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='work_orders')
+    pm_name = models.CharField(max_length=100, blank=True, null=True)  # Project Manager name
+    set_name = models.CharField(max_length=100, blank=True, null=True)  # Set name
+    asset_activity = models.CharField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return self.wo_number
 
     def save(self, *args, **kwargs):
         if not self.wo_number:
             self.wo_number = f"WO-{uuid.uuid4().hex[:6].upper()}"
-        if self.status == 'released' and not self.wo_start_date:
-            self.wo_start_date = timezone.now()
-        if self.status == 'completed' and not self.wo_completion_date:
-            self.wo_completion_date = timezone.now()
-            if self.wo_start_date:
-                self.actual_duration = self.wo_completion_date - self.wo_start_date
         super().save(*args, **kwargs)
 
-    def __str__(self):
-        return self.wo_number
 
 # ===============================
 # Analytics, Energy, Document
@@ -271,3 +277,19 @@ class energy_trend(models.Model):
 
     def __str__(self):
         return self.month_name
+
+# ===============================
+# Audit Trail Model
+# ===============================
+# models.py
+class AuditTrail(models.Model):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=50)
+    model_name = models.CharField(max_length=100)
+    object_id = models.CharField(max_length=100, null=True, blank=True)
+    description = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.timestamp} | {self.user} | {self.action} | {self.model_name}"
+

@@ -1,5 +1,6 @@
 "use client"
 
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,14 +9,11 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
 import {
   Users,
   UserPlus,
-  Settings,
   Activity,
   Shield,
-  AlertTriangle,
   CheckCircle,
   MoreHorizontal,
   Search,
@@ -24,12 +22,82 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { RegisterModal } from "@/components/modals/RegisterModal"
 import { useState, useEffect } from "react";
 
+
+
+
 export default function AdminPage() {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [usersData, setUsersData] = useState<any[]>([]); // ✅ deklarasi di sini
-  const activeUsers = usersData?.filter((user) => user.status === "Active").length || 0
-  const totalUsers = usersData?.length || 0
+  const [usersData, setUsersData] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [auditSearchTerm, setAuditSearchTerm] = useState('');
+  const [auditActionFilter, setAuditActionFilter] = useState('all');
+  const [auditTimeFilter, setAuditTimeFilter] = useState('all');
+  // Define auditData outside the component to avoid duplicate declarations
+  const [auditData, setAuditData] = useState<any[]>([]);
 
+
+  // Filter users based on search and filters
+  const filteredUsers = usersData.filter(user => {
+    const matchesSearch =
+      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+   
+    const matchesRole =
+      roleFilter === 'all' ||
+      user.role?.toLowerCase().includes(roleFilter.toLowerCase());
+   
+    const matchesStatus =
+      statusFilter === 'all' ||
+      user.status?.toLowerCase() === statusFilter.toLowerCase();
+   
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+
+  const activeUsers = usersData?.filter((user) => user.status === "Active").length || 0;
+  const totalUsers = usersData?.length || 0;
+
+
+  // Filter audit data
+  const filteredAuditData = auditData.filter(audit => {
+    const matchesSearch =
+      audit.user.toLowerCase().includes(auditSearchTerm.toLowerCase()) ||
+      audit.action.toLowerCase().includes(auditSearchTerm.toLowerCase()) ||
+      audit.details.toLowerCase().includes(auditSearchTerm.toLowerCase());
+   
+    const matchesAction =
+      auditActionFilter === 'all' ||
+      audit.action.toLowerCase().includes(auditActionFilter.toLowerCase());
+   
+    const matchesTime = auditTimeFilter === 'all';
+   
+    return matchesSearch && matchesAction && matchesTime;
+  });
+
+const handleSendReport = async () => {
+  const token = localStorage.getItem("accessToken");
+  try {
+    const res = await fetch("http://localhost:8000/api/send-daily-report/", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+
+    if (res.ok) {
+      alert("Laporan berhasil dikirim!");
+    } else {
+      const data = await res.json();
+      console.error("Gagal kirim laporan:", data);
+      alert("Gagal kirim laporan!");
+    }
+  } catch (err) {
+    console.error("Error kirim email:", err);
+    alert("Terjadi error saat mengirim laporan.");
+  }
+};
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -43,6 +111,7 @@ export default function AdminPage() {
         return "bg-gray-100 text-gray-800"
     }
   }
+
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -60,22 +129,113 @@ export default function AdminPage() {
         return "outline"
     }
   }
+ 
+  const resetUserPassword = async (id: number, newPassword: string) => {
+    const access = localStorage.getItem("accessToken")
 
-useEffect(() => {
-  const fetchUsers = async () => {
+
+    try {
+      const res = await fetch(`http://localhost:8000/api/users/${id}/reset-password/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${access}`,
+        },
+        body: JSON.stringify({ new_password: newPassword }),
+      })
+
+
+      if (res.ok) {
+        alert("Password reset successfully!")
+      } else {
+        const errorData = await res.json();
+        console.error("Reset failed:", errorData);
+        alert("Failed to reset password: " + (errorData.error || "Unknown error"))
+      }
+    } catch (error) {
+      console.error("Error resetting password:", error)
+    }
+  }
+
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+
+
+        let res = await fetch("http://localhost:8000/api/users/", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+
+        if (res.status === 401) {
+          console.warn("Token expired. Trying to refresh...");
+
+
+          const refreshToken = localStorage.getItem("refreshToken");
+          const refreshRes = await fetch("http://localhost:8000/api/token/refresh/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ refresh: refreshToken }),
+          });
+
+
+          if (!refreshRes.ok) {
+            console.error("Failed to refresh token, logging out...");
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
+            window.location.replace("/login");
+            throw new Error("Refresh token invalid, please login again");
+          }
+
+
+          const refreshData = await refreshRes.json();
+          localStorage.setItem("accessToken", refreshData.access);
+
+
+          res = await fetch("http://localhost:8000/api/users/", {
+            headers: {
+              Authorization: `Bearer ${refreshData.access}`,
+            },
+          });
+        }
+
+
+        if (!res.ok) {
+          const errorBody = await res.text();
+          throw new Error(`Fetch failed: ${res.status} - ${errorBody}`);
+        }
+
+
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setUsersData(data);
+        } else {
+          setUsersData([]);
+          console.error("Expected array but got:", data);
+        }
+      } catch (err) {
+        console.error("Final error fetching users:", err);
+        setUsersData([]);
+      }
+    };
+
+    const fetchAuditTrail = async () => {
     try {
       const token = localStorage.getItem("accessToken");
 
-      let res = await fetch("http://localhost:8000/api/users/", {
+      let res = await fetch("http://localhost:8000/api/audit-trail/", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      // Kalau token expired, coba refresh token
       if (res.status === 401) {
-        console.warn("Token expired. Trying to refresh...");
-
         const refreshToken = localStorage.getItem("refreshToken");
         const refreshRes = await fetch("http://localhost:8000/api/token/refresh/", {
           method: "POST",
@@ -86,137 +246,68 @@ useEffect(() => {
         });
 
         if (!refreshRes.ok) {
-          console.error("Failed to refresh token, logging out...");
-          localStorage.removeItem("access");
-          localStorage.removeItem("refreshToken");
+          console.error("Token refresh failed, logging out...");
+          localStorage.clear();
           window.location.replace("/login");
-          throw new Error("Refresh token invalid, please login again");
+          return;
         }
 
-        const refreshData = await refreshRes.json();
-        localStorage.setItem("access", refreshData.access);
+        const newToken = await refreshRes.json();
+        localStorage.setItem("accessToken", newToken.access);
 
-        // Retry fetching users with the new token
-        res = await fetch("http://localhost:8000/api/users/", {
+        res = await fetch("http://localhost:8000/api/audit-trail/", {
           headers: {
-            Authorization: `Bearer ${refreshData.access}`,
+            Authorization: `Bearer ${newToken.access}`,
           },
         });
       }
 
       if (!res.ok) {
-        const errorBody = await res.text();
-        throw new Error(`Fetch failed: ${res.status} - ${errorBody}`);
+        throw new Error(`Failed to fetch audit logs: ${res.status}`);
       }
 
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setUsersData(data);
-      } else {
-        setUsersData([]);
-        console.error("Expected array but got:", data);
-      }
-    } catch (err) {
-      console.error("Final error fetching users:", err);
-      setUsersData([]);  // Reset users data on error
-      // Optionally show an error message to the user
-      setError("Failed to load users.");
+      const auditData = await res.json();
+      setAuditData(auditData); // pastikan kamu punya state `const [auditData, setAuditData] = useState([])`
+    } catch (error) {
+      console.error("Error fetching audit trail:", error);
     }
   };
+   
+    fetchUsers();
+    fetchAuditTrail();
+  }, []);
 
-  fetchUsers();
-}, []);
+
+  const toggleUserStatus = async (userId: number, currentStatus: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
 
 
+      const res = await fetch(`http://localhost:8000/api/users/${userId}/status/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
 
-// Dummy data untuk audit trail
-const auditData = [
-  {
-    id: "AUDIT-001",
-    user: "Ahmad Teknisi",
-    action: "Updated Work Order",
-    resource: "WO-2024-001",
-    timestamp: "2024-01-16 10:30:15",
-    ipAddress: "192.168.1.100",
-    details: "Changed status from Open to In Progress",
-  },
-  {
-    id: "AUDIT-002",
-    user: "Dedi Utility",
-    action: "Input Energy Data",
-    resource: "Energy-Listrik",
-    timestamp: "2024-01-16 08:30:00",
-    ipAddress: "192.168.1.105",
-    details: "Added daily electricity consumption: 1600 kWh",
-  },
-  {
-    id: "AUDIT-003",
-    user: "Budi Manager",
-    action: "Approved Request",
-    resource: "REQ-2024-001",
-    timestamp: "2024-01-15 15:45:30",
-    ipAddress: "192.168.1.101",
-    details: "Approved maintenance request for AC repair",
-  },
-  {
-    id: "AUDIT-004",
-    user: "Citra QAC",
-    action: "Updated CAPA",
-    resource: "CAPA-2024-001",
-    timestamp: "2024-01-15 14:20:45",
-    ipAddress: "192.168.1.103",
-    details: "Updated completion rate to 65%",
-  },
-  {
-    id: "AUDIT-005",
-    user: "System",
-    action: "File Upload",
-    resource: "SOP-ENG-001",
-    timestamp: "2024-01-15 11:15:20",
-    ipAddress: "System",
-    details: "New SOP file uploaded: Maintenance Preventif v2.1",
-  },
-]
 
-// System settings
-const systemSettings = {
-  maintenanceMode: false,
-  autoBackup: true,
-  emailNotifications: true,
-  dataRetention: "12 months",
-  maxFileSize: "10 MB",
-  sessionTimeout: "8 hours",
-}
+      if (!res.ok) {
+        throw new Error(`Failed to update user status: ${res.status}`);
+      }
 
-const toggleUserStatus = async (userId: number, currentStatus: string) => {
-  try {
-    const token = localStorage.getItem("accessToken");
-    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
 
-    const res = await fetch(`http://localhost:8000/api/users/${userId}/status/`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status: newStatus }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to update user status: ${res.status}`);
+      const updatedUsers = usersData.map((u) =>
+        u.id === userId ? { ...u, status: newStatus } : u
+      );
+      setUsersData(updatedUsers);
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      alert("Failed to update user status");
     }
-
-    // Refresh user list setelah update
-    const updatedUsers = usersData.map((u) =>
-      u.id === userId ? { ...u, status: newStatus } : u
-    );
-    setUsersData(updatedUsers);
-  } catch (error) {
-    console.error("Error updating user status:", error);
-    alert("Failed to update user status");
-  }
-};
-
+  };
 
 
   return (
@@ -237,6 +328,7 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
         </div>
       </header>
 
+
       {/* Main Content */}
       <main className="flex-1 space-y-6 p-6">
         {/* Stats Cards */}
@@ -252,6 +344,7 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
             </CardContent>
           </Card>
 
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
@@ -263,6 +356,7 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
             </CardContent>
           </Card>
 
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">System Health</CardTitle>
@@ -273,6 +367,7 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
               <p className="text-xs text-muted-foreground">All services running</p>
             </CardContent>
           </Card>
+
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -286,13 +381,23 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
           </Card>
         </div>
 
+
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-4">
           <TabsList>
             <TabsTrigger value="users">User Management</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
-            <TabsTrigger value="settings">System Settings</TabsTrigger>
           </TabsList>
+          <Button
+              variant="default"
+              className="ml-4"
+              onClick={handleSendReport}
+            >
+              Kirim Laporan Hari Ini
+            </Button>
+
+
+
 
           <TabsContent value="users" className="space-y-4">
             {/* User Management Header */}
@@ -314,23 +419,28 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
                   <div className="flex-1">
                     <div className="relative">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Cari user berdasarkan nama atau email..." className="pl-8" />
+                      <Input
+                        placeholder="Cari user berdasarkan nama atau email..."
+                        className="pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
                     </div>
                   </div>
-                  <Select>
+                  <Select value={roleFilter} onValueChange={setRoleFilter}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Role" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Roles</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="engineer">Engineering Staff</SelectItem>
+                      <SelectItem value="engineering staff">Engineering Staff</SelectItem>
                       <SelectItem value="qac">QAC</SelectItem>
-                      <SelectItem value="utility">Utility Team</SelectItem>
-                      <SelectItem value="division">Division User</SelectItem>
+                      <SelectItem value="utility team">Utility Team</SelectItem>
+                      <SelectItem value="division user">Division User</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -344,35 +454,37 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
               </CardContent>
             </Card>
 
+
             {/* Users List */}
             <div className="space-y-4">
-              {usersData.map((user: any) => (
-  <Card key={user.id}>
-    <CardContent className="p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-12 w-12">
-            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.full_name} />
-            <AvatarFallback>
-              {user.full_name
-                .split(" ")
-                .map((n: string) => n[0])
-                .join("")}
-            </AvatarFallback>
-          </Avatar>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold">{user.full_name}</h3>
-              <Badge variant={getRoleColor(user.role)}>{user.role}</Badge>
-              <Badge className={getStatusColor(user.status)}>{user.status}</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span>Division: {user.division}</span>
-              <span>Joined: {new Date(user.date_joined).toLocaleDateString()}</span>
-            </div>
-          </div>
-        </div>
+              {filteredUsers.map((user: any) => (
+                <Card key={user.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.full_name} />
+                          <AvatarFallback>
+                            {user.full_name
+                              ?.split(" ")
+                              .map((n: string) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">{user.full_name}</h3>
+                            <Badge variant={getRoleColor(user.role)}>{user.role}</Badge>
+                            <Badge className={getStatusColor(user.status)}>{user.status}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>Division: {user.division}</span>
+                            <span>Joined: {new Date(user.date_joined).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
 
                       <div className="flex items-center gap-2">
                         <DropdownMenu>
@@ -382,14 +494,18 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Reset Password</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              const newPass = window.prompt("Enter new password for this user:");
+                              if (newPass) resetUserPassword(user.id, newPass);
+                            }}>
+                              Reset Password
+                            </DropdownMenuItem>
                             <DropdownMenuItem
-  className={user.status === "Active" ? "text-red-600" : "text-green-600"}
-  onClick={() => toggleUserStatus(user.id, user.status)}
->
-  {user.status === "Active" ? "Deactivate" : "Activate"}
-</DropdownMenuItem>
-
+                              className={user.status === "Active" ? "text-red-600" : "text-green-600"}
+                              onClick={() => toggleUserStatus(user.id, user.status)}
+                            >
+                              {user.status === "Active" ? "Deactivate" : "Activate"}
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -399,6 +515,7 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
               ))}
             </div>
           </TabsContent>
+
 
           <TabsContent value="audit" className="space-y-4">
             {/* Audit Trail Header */}
@@ -412,10 +529,15 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
                   <div className="flex-1">
                     <div className="relative">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Cari aktivitas berdasarkan user atau action..." className="pl-8" />
+                      <Input
+                        placeholder="Cari aktivitas berdasarkan user atau action..."
+                        className="pl-8"
+                        value={auditSearchTerm}
+                        onChange={(e) => setAuditSearchTerm(e.target.value)}
+                      />
                     </div>
                   </div>
-                  <Select>
+                  <Select value={auditActionFilter} onValueChange={setAuditActionFilter}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Action Type" />
                     </SelectTrigger>
@@ -428,7 +550,7 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
                       <SelectItem value="approve">Approve</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select>
+                  <Select value={auditTimeFilter} onValueChange={setAuditTimeFilter}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Time Range" />
                     </SelectTrigger>
@@ -443,6 +565,7 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
               </CardContent>
             </Card>
 
+
             {/* Audit Log */}
             <Card>
               <CardHeader>
@@ -450,7 +573,7 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {auditData.map((audit) => (
+                  {filteredAuditData.map((audit) => (
                     <div key={audit.id} className="flex items-start gap-4 p-4 border rounded-lg">
                       <div className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
                       <div className="flex-1 space-y-1">
@@ -471,159 +594,12 @@ const toggleUserStatus = async (userId: number, currentStatus: string) => {
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="settings" className="space-y-4">
-            {/* System Settings */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>General Settings</CardTitle>
-                  <CardDescription>Konfigurasi umum sistem</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Maintenance Mode</p>
-                      <p className="text-sm text-muted-foreground">Aktifkan untuk maintenance sistem</p>
-                    </div>
-                    <Switch checked={systemSettings.maintenanceMode} />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Auto Backup</p>
-                      <p className="text-sm text-muted-foreground">Backup otomatis setiap hari</p>
-                    </div>
-                    <Switch checked={systemSettings.autoBackup} />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Email Notifications</p>
-                      <p className="text-sm text-muted-foreground">Kirim notifikasi via email</p>
-                    </div>
-                    <Switch checked={systemSettings.emailNotifications} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Data & Security</CardTitle>
-                  <CardDescription>Pengaturan keamanan dan data</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Data Retention Period</label>
-                    <Select defaultValue={systemSettings.dataRetention}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="6 months">6 Months</SelectItem>
-                        <SelectItem value="12 months">12 Months</SelectItem>
-                        <SelectItem value="24 months">24 Months</SelectItem>
-                        <SelectItem value="forever">Forever</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Max File Upload Size</label>
-                    <Select defaultValue={systemSettings.maxFileSize}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="5 MB">5 MB</SelectItem>
-                        <SelectItem value="10 MB">10 MB</SelectItem>
-                        <SelectItem value="25 MB">25 MB</SelectItem>
-                        <SelectItem value="50 MB">50 MB</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Session Timeout</label>
-                    <Select defaultValue={systemSettings.sessionTimeout}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="2 hours">2 Hours</SelectItem>
-                        <SelectItem value="4 hours">4 Hours</SelectItem>
-                        <SelectItem value="8 hours">8 Hours</SelectItem>
-                        <SelectItem value="24 hours">24 Hours</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>System Information</CardTitle>
-                  <CardDescription>Informasi sistem dan versi</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Application Version</span>
-                    <span className="text-sm font-medium">v1.2.0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Database Version</span>
-                    <span className="text-sm font-medium">PostgreSQL 14.2</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Last Backup</span>
-                    <span className="text-sm font-medium">2024-01-16 02:00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Uptime</span>
-                    <span className="text-sm font-medium">15 days, 8 hours</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Storage Used</span>
-                    <span className="text-sm font-medium">2.4 GB / 100 GB</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                  <CardDescription>Aksi cepat untuk maintenance sistem</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Run System Diagnostics
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Activity className="h-4 w-4 mr-2" />
-                    Generate System Report
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Shield className="h-4 w-4 mr-2" />
-                    Security Scan
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start text-red-600 bg-transparent">
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Clear All Logs
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
         </Tabs>
         {isRegisterOpen && (
           <RegisterModal open={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} />
         )}
       </main>
     </div>
-  )
+  );
 }
 
-function setError(arg0: string) {
-  throw new Error("Function not implemented.")
-}

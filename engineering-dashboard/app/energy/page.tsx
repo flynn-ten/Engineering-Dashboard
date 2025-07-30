@@ -54,6 +54,19 @@ export default function EnergyPage() {
   const [air, setAir] = useState(0);
   const [cng, setCng] = useState(0);
 
+  const SubmitButton = ({ type }: { type: string }) => (
+  <Button className="w-full" onClick={() => handleEnergySubmit(type)} disabled={isSubmitting}>
+    {isSubmitting ? (
+      <>
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Mengirim Email...
+      </>
+    ) : (
+      `Kirim Data ${type.charAt(0).toUpperCase() + type.slice(1)}`
+    )}
+  </Button>
+);
+
   const parseDateSafely = (str: string): Date | null => {
     const isoTry = new Date(str);
     if (!isNaN(isoTry.getTime())) return isoTry;
@@ -199,71 +212,52 @@ useEffect(() => {
  //punya standy
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submitMessage, setSubmitMessage] = useState("")
-    const handleEnergySubmit = async (energyType: string) => {
-      setIsSubmitting(true)
-      setSubmitMessage("")
+    const handleEnergySubmit = async (type: string) => {
+  const date = (document.getElementById(`${type}-date`) as HTMLInputElement)?.value;
+  const value = (document.getElementById(`${type}-value`) as HTMLInputElement)?.value;
+  const meterNumber = (document.getElementById(`${type}-meter`) as HTMLInputElement)?.value;
+  const photoInput = document.getElementById(`${type}-photo`) as HTMLInputElement;
+  const photo = photoInput?.files?.[0];
 
-      try {
-        // Get form data based on energy type
-        const date = (document.getElementById(`${energyType}-date`) as HTMLInputElement)?.value
-        const value = (document.getElementById(`${energyType}-value`) as HTMLInputElement)?.value
-        const meter = (document.getElementById(`${energyType}-meter`) as HTMLInputElement)?.value
+  if (!date || !value || !meterNumber) {
+    alert("Semua field wajib diisi.");
+    return;
+  }
 
-        if (!date || !value || !meter) {
-          setSubmitMessage("Semua field harus diisi!")
-          return
-        }
+  const token = localStorage.getItem("accessToken");
+  if (!token) {
+    alert("Sesi login habis. Silakan login ulang.");
+    return;
+  }
 
-        
-        // In real implementation, this would call your email service
-        const token = localStorage.getItem("accessToken")
-        if (!token) {
-          setSubmitMessage("Token tidak ditemukan. Silakan login ulang.")
-          return
-        }
+  const formData = new FormData();
+  formData.append("date", date);
+  formData.append("type", type);
+  formData.append("value", value);
+  formData.append("meter_number", meterNumber);
+  if (photo) formData.append("photo", photo);
 
-        const response = await fetch("http://localhost:8000/api/energy/submit/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            type: energyType,
-            date: date,
-            value: Number.parseFloat(value),
-            meter_number: meter,
-            email_recipient: "standybelajar@gmail.com",
-          }),
-        })
+  setIsSubmitting(true);
+  const res = await fetch("http://localhost:8000/api/energy-input/create/", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  setIsSubmitting(false);
 
-        const result = await response.json()
-
-        if (response.ok) {
-          setSubmitMessage(`✅ Data ${energyType} berhasil disimpan dan email telah dikirim!`)
-          ;(document.getElementById(`${energyType}-date`) as HTMLInputElement).value = new Date()
-            .toISOString()
-            .split("T")[0]
-          ;(document.getElementById(`${energyType}-value`) as HTMLInputElement).value = ""
-          ;(document.getElementById(`${energyType}-meter`) as HTMLInputElement).value = ""
-        } else {
-          setSubmitMessage(`❌ Error: ${result.error || "Gagal menyimpan data"}`)
-        }
+  if (res.ok) {
+    setSubmitMessage(`✅ Data ${type} berhasil disimpan dan email telah dikirim!`);
+    photoInput.value = "";
+  } else {
+    const errorText = await res.text();
+    console.error("Error:", errorText);
+    setSubmitMessage(`❌ Gagal menyimpan data ${type}. Cek console.`);
+  }
+};
 
 
-        // Reset form
-        ;(document.getElementById(`${energyType}-date`) as HTMLInputElement).value = new Date()
-          .toISOString()
-          .split("T")[0]
-        ;(document.getElementById(`${energyType}-value`) as HTMLInputElement).value = ""
-        ;(document.getElementById(`${energyType}-meter`) as HTMLInputElement).value = ""
-      } catch (error) {
-        console.error("Submit error:", error)
-        setSubmitMessage("Terjadi kesalahan saat mengirim email")
-      } finally {
-        setIsSubmitting(false)
-      }
-    }
   return (
     <div className="p-6 space-y-6">
       <div className="grid md:grid-cols-3 gap-4">
@@ -462,16 +456,7 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  <Button className="w-full" onClick={() => handleEnergySubmit("listrik")} disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Mengirim Email...
-                      </>
-                    ) : (
-                      "Kirim Email Data Listrik"
-                    )}
-                  </Button>
+                  <SubmitButton type="listrik" />
 
                   {submitMessage && (
                     <Alert
@@ -523,9 +508,24 @@ useEffect(() => {
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full" onClick={() => handleEnergySubmit("air")}>
-  Simpan Data Air
-</Button>
+                  <SubmitButton type="air" />
+                  {submitMessage && (
+                    <Alert
+                      className={
+                        submitMessage.includes("berhasil")
+                          ? "border-green-200 bg-green-50"
+                          : "border-red-200 bg-red-50"
+                      }
+                    >
+                      <AlertDescription
+                        className={
+                          submitMessage.includes("berhasil") ? "text-green-800" : "text-red-800"
+                        }
+                      >
+                        {submitMessage}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </CardContent>
               </Card>
 
@@ -559,9 +559,24 @@ useEffect(() => {
                       </Button>
                     </div>
                   </div>
-                  <Button className="w-full" onClick={() => handleEnergySubmit("cng")}>
-                  Simpan Data CNG
-                  </Button>
+                  <SubmitButton type="cng" />
+                  {submitMessage && (
+                    <Alert
+                      className={
+                        submitMessage.includes("berhasil")
+                          ? "border-green-200 bg-green-50"
+                          : "border-red-200 bg-red-50"
+                      }
+                    >
+                      <AlertDescription
+                        className={
+                          submitMessage.includes("berhasil") ? "text-green-800" : "text-red-800"
+                        }
+                      >
+                        {submitMessage}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </CardContent>
               </Card>
             </div>

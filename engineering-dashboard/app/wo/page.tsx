@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Calendar, Clock, User, Wrench, AlertCircle, CheckCircle, MoreHorizontal, XCircle } from "lucide-react"
+import { Search, Calendar, Clock, User, Wrench, AlertCircle, CheckCircle, MoreHorizontal, XCircle, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ const WorkOrdersPage = () => {
   const [workOrder, setWorkOrder] = useState<any>(null);
   const [isLoadingRequests, setIsLoadingRequests] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [engineer_name, setEngineerName] = useState("");
 
   // New states for work order form functionality
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
@@ -50,6 +51,22 @@ const WorkOrdersPage = () => {
   });
   // Changed to track work orders that have been form-completed (ready for completion)
   const [formCompletedWorkOrders, setFormCompletedWorkOrders] = useState<Set<string>>(new Set());
+
+  const [isPMDialogOpen, setIsPMDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    asset_number: "",
+    asset_group: "",
+    asset_area: "",
+    parent_asset: "",
+    urgency: "",
+    wo_type: "",
+    wo_start_date: new Date(),
+    pm_name: "",
+    set_name: "",
+    asset_activity: "",
+  });
 
   // Remove hardcoded data - we'll fetch from API instead
   const workingRequests = Array.isArray(workRequests) ? workRequests.filter(req => req.status === "pending" || req.status === "In Review") : [];
@@ -66,6 +83,16 @@ const WorkOrdersPage = () => {
     filteredWorkOrders.filter(wo => 
       wo.status && (wo.status.toLowerCase() === "released")
     ) : [];
+
+
+  const formatDuration = (duration: string): string => {
+  const [hours, minutes] = duration.split(":");
+  const h = parseInt(hours);
+  const m = parseInt(minutes);
+  
+
+  return h > 0 ? `${h} jam ${m} menit` : `${m} menit`;
+};
 
   useEffect(() => {
     // Hanya berjalan di client
@@ -246,6 +273,39 @@ const WorkOrdersPage = () => {
     setIsFormDialogOpen(true);
   };
 
+  const handleChange = (key: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleSubmit = async () => {
+  const token = localStorage.getItem("accessToken");
+  console.log("🔐 Token used:", token);
+
+  try {
+    const response = await fetch("http://localhost:8000/api/planned-maintenance/create/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(formData),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Response error:", errorText);
+      throw new Error("Gagal submit PM");
+    }
+
+    const data = await response.json();
+    console.log("✅ Submit success:", data);
+    alert("Planned Maintenance berhasil disimpan!");
+  } catch (err) {
+    console.error("Gagal submit:", err);
+  }
+};
+
+
   // Updated form submission function
 const handleFormSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -364,7 +424,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       
       setWorkOrders(prevWorkOrders => 
         prevWorkOrders.map(wo => 
-          (wo.no === selectedWorkOrder.no || wo.id === selectedWorkOrder.id)
+          (wo.wo_number === selectedWorkOrder.no || wo.id === selectedWorkOrder.id)
             ? { 
                 ...wo, 
                 status: "released",
@@ -428,21 +488,22 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       }
 
       // Find the work order by number from the current work orders state
-      const workOrderToComplete = workOrders.find(wo => wo.no === workOrderNo || wo.id === workOrderNo);
+      const workOrderToComplete = workOrders.find(wo => wo.wo_number === workOrderNo || wo.id === workOrderNo);
       if (!workOrderToComplete) {
         alert("Work order not found.");
         return;
       }
 
       // Update work order status to "Complete"
-      const response = await fetch(`http://localhost:8000/api/work-orders/${workOrderToComplete.id}/`, {
+      const response = await fetch(`http://localhost:8000/api/work-orders/status/${workOrderToComplete.wo_number}/`, {
+
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          status: "completed" // Using 'status' field for database
+          status: "completed"
         }),
       });
 
@@ -459,7 +520,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
         // Update the work order in the local state
         setWorkOrders(prevWorkOrders => 
           prevWorkOrders.map(wo => 
-            (wo.no === workOrderNo || wo.id === workOrderNo)
+            (wo.wo_number === workOrderNo || wo.id === workOrderNo)
               ? { ...wo, status: "completed" } // Update status field
               : wo
           )
@@ -560,7 +621,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                 setWo_created_date(latestData.wo_created_date);
                 setWo_status(latestData.status); // Using wo.status consistently
                 setResource(latestData.resource);
-                setWo_description(latestData.wo_description);
+                setWo_description(latestData.description);
                 setWo_type(latestData.wo_type);
                 setWr_requestor(latestData.wr_requestor);
                 setWo_actual_completion_date(latestData.wo_actual_completion_date);
@@ -594,7 +655,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
           setWo_created_date(latestData.wo_created_date);
           setWo_status(latestData.status); // Using wo.status consistently
           setResource(latestData.resource);
-          setWo_description(latestData.wo_description);
+          setWo_description(latestData.description);
           setWo_type(latestData.wo_type);
           setWr_requestor(latestData.wr_requestor);
           setWo_actual_completion_date(latestData.wo_actual_completion_date);
@@ -688,6 +749,35 @@ const handleFormSubmit = async (e: React.FormEvent) => {
   const safeFilteredWorkOrders = Array.isArray(filteredWorkOrders) ? filteredWorkOrders : [];
   const safeWorkRequests = Array.isArray(workRequests) ? workRequests : [];
 
+  // Add pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Calculate pagination data
+  const totalItems = safeFilteredWorkOrders.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const paginatedWorkOrders = safeFilteredWorkOrders.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Pagination handlers
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const nextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Loading state */}
@@ -736,7 +826,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">
-                {safeFilteredWorkOrders.filter((wo) => wo.status === "Unreleased").length}
+                {safeFilteredWorkOrders.filter((wo) => wo.status === "unreleased").length}
               </div>
             </CardContent>
           </Card>
@@ -748,7 +838,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {safeFilteredWorkOrders.filter((wo) => wo.status === "Complete").length}
+                {safeFilteredWorkOrders.filter((wo) => wo.status === "completed").length}
               </div>
             </CardContent>
           </Card>
@@ -782,40 +872,68 @@ const handleFormSubmit = async (e: React.FormEvent) => {
         </Card>
 
         {/* Work Orders Tabs */}
+        
         <Tabs defaultValue="list" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="list">List Work Order</TabsTrigger>
-            <TabsTrigger value="requests">Working Requests</TabsTrigger>
-            <TabsTrigger value="work order">Work Order</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="list">List Work Order</TabsTrigger>
+              <TabsTrigger value="requests">Working Requests</TabsTrigger>
+              <TabsTrigger value="work-order">Work Order</TabsTrigger> {/* Changed to kebab-case */}
+              <TabsTrigger value="PM">Planned Maintenance</TabsTrigger>
+            </TabsList>
+            
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setIsPMDialogOpen(true)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                PM
+              </Button>
+            </div>
+          </div>
 
           <TabsContent value="list" className="space-y-4">
-            {safeFilteredWorkOrders.map((wo, index) => (
-              <Card key={wo.no || `wo-${index}`}>
+            <div className="space-y-4"></div>
+            {paginatedWorkOrders.map((wo, index) => (
+              <Card key={wo.wo_number || `wo-${index}`}>
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="space-y-3 flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="text-lg font-semibold">{wo.title}</h3>
-                        <Badge variant="outline">{wo.no}</Badge>
+                        <Badge variant="outline">{wo.wo_number}</Badge>
                         <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
                         <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
                       </div>
 
-                      <p className="text-sm text-muted-foreground">{wo.wo_description}</p>
+                      <p className="text-sm text-muted-foreground">{wo.description}</p>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
-                          <span>Assignee: {wo.wr_requestor}</span>
+                          <span>Assignee: {wo.engineer_name}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>Due: {wo.wo_actual_completion_date} </span>
+                          <span>
+                            Completion : {wo.wo_completion_date ? 
+                              new Date(wo.wo_completion_date).toLocaleString("id-ID", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
+                                timeZone: "Asia/Jakarta",
+                              }) : "–"}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span>Est: {wo.actual_duration} </span>
+                          <span>
+                            Duration: {wo.actual_duration ? formatDuration(wo.actual_duration) : "–"}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Wrench className="h-4 w-4 text-muted-foreground" />
@@ -841,8 +959,71 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </TabsContent>
+            ))}{totalItems > itemsPerPage && (
+    <div className="flex items-center justify-between mt-4">
+      <div className="text-sm text-muted-foreground">
+        Showing {((currentPage - 1) * itemsPerPage) + 1}–
+        {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} work orders
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={prevPage}
+          disabled={currentPage === 1}
+        >
+          Previous
+        </Button>
+        <div className="flex items-center gap-1">
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum;
+            if (totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (currentPage <= 3) {
+              pageNum = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+              pageNum = totalPages - 4 + i;
+            } else {
+              pageNum = currentPage - 2 + i;
+            }
+
+            return (
+              <Button
+                key={pageNum}
+                variant={currentPage === pageNum ? "default" : "outline"}
+                size="sm"
+                onClick={() => goToPage(pageNum)}
+              >
+                {pageNum}
+              </Button>
+            );
+          })}
+          {totalPages > 5 && currentPage < totalPages - 2 && (
+            <>
+              <span className="px-2">...</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(totalPages)}
+              >
+                {totalPages}
+              </Button>
+            </>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={nextPage}
+          disabled={currentPage === totalPages}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  )}
+</TabsContent>
+
           
           <TabsContent value="requests" className="space-y-4">
             {/* Filter & Pencarian untuk Requests */}
@@ -911,7 +1092,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                             </div>
 
                             <p className="text-sm text-muted-foreground">
-                              {request.wo_description || request.description}
+                              {request.description || request.description}
                             </p>
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -953,7 +1134,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
             </div>
           </TabsContent>
           
-          <TabsContent value="work order" className="space-y-4">
+          <TabsContent value="work-order" className="space-y-4">
             {/* Sub-tabs for work orders */}
             <Tabs defaultValue="pending-forms" className="space-y-4">
               <TabsList>
@@ -973,23 +1154,23 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                   ) : (
                     <div className="space-y-4">
                       {unreleasedWorkOrders.map((wo, index) => (
-                        <Card key={wo.no || `unreleased-wo-${index}`}>
+                        <Card key={wo.wo_number || `unreleased-wo-${index}`}>
                           <CardContent className="p-6">
                             <div className="flex items-start justify-between">
                               <div className="space-y-3 flex-1">
                                 <div className="flex items-center gap-3">
                                   <h3 className="text-lg font-semibold">{wo.title}</h3>
-                                  <Badge variant="outline">{wo.no}</Badge>
+                                  <Badge variant="outline">{wo.wo_number}</Badge>
                                   <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
                                   <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
                                 </div>
 
-                                <p className="text-sm text-muted-foreground">{wo.wo_description}</p>
+                                <p className="text-sm text-muted-foreground">{wo.description}</p>
 
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                   <div className="flex items-center gap-2">
                                     <User className="h-4 w-4 text-muted-foreground" />
-                                    <span>Assignee: {wo.wr_requestor}</span>
+                                    <span>Assignee: {wo.engineer_name}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -1037,23 +1218,23 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                   ) : (
                     <div className="space-y-4">
                       {releasedWorkOrders.map((wo, index) => (
-                        <Card key={wo.no || `released-wo-${index}`}>
+                        <Card key={wo.wo_number || `released-wo-${index}`}>
                           <CardContent className="p-6">
                             <div className="flex items-start justify-between">
                               <div className="space-y-3 flex-1">
                                 <div className="flex items-center gap-3">
                                   <h3 className="text-lg font-semibold">{wo.title}</h3>
-                                  <Badge variant="outline">{wo.no}</Badge>
+                                  <Badge variant="outline">{wo.wo_number}</Badge>
                                   <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
                                   <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
                                 </div>
 
-                                <p className="text-sm text-muted-foreground">{wo.wo_description}</p>
+                                <p className="text-sm text-muted-foreground">{wo.description}</p>
 
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                   <div className="flex items-center gap-2">
                                     <User className="h-4 w-4 text-muted-foreground" />
-                                    <span>Assignee: {wo.wr_requestor}</span>
+                                    <span>Assignee: {wo.engineer_name}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -1074,7 +1255,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                                 <Button
                                   size="sm"
                                   className="bg-green-600 hover:bg-green-700"
-                                  onClick={() => handleCompleteWorkOrder(wo.no || wo.id)}
+                                  onClick={() => handleCompleteWorkOrder(wo.wo_number || wo.id)}
                                 >
                                   <CheckCircle className="h-4 w-4 mr-1" />
                                   Complete
@@ -1109,11 +1290,16 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                           <SelectValue placeholder="Select Asset Area" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="production">Production</SelectItem>
-                          <SelectItem value="warehouse">Warehouse</SelectItem>
-                          <SelectItem value="office">Office</SelectItem>
-                          <SelectItem value="utilities">Utilities</SelectItem>
-                          <SelectItem value="maintenance">Maintenance</SelectItem>
+                          <SelectItem value="EN">EN</SelectItem>
+                          <SelectItem value="IT">IT</SelectItem>
+                          <SelectItem value="QA">QA</SelectItem>
+                          <SelectItem value="QC">QC</SelectItem>
+                          <SelectItem value="PD">PD</SelectItem>
+                          <SelectItem value="RD">RD</SelectItem>
+                          <SelectItem value="WH">WH</SelectItem>
+                          <SelectItem value="LINE01">LINE01</SelectItem>
+                          <SelectItem value="LINE02">LINE02</SelectItem>
+                          <SelectItem value="LINE03">LINE03</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1129,12 +1315,12 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                           <SelectValue placeholder="Select Asset Group" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="machinery">Machinery</SelectItem>
-                          <SelectItem value="electrical">Electrical</SelectItem>
-                          <SelectItem value="hvac">HVAC</SelectItem>
-                          <SelectItem value="plumbing">Plumbing</SelectItem>
-                          <SelectItem value="it_equipment">IT Equipment</SelectItem>
-                          <SelectItem value="safety_equipment">Safety Equipment</SelectItem>
+                          <SelectItem value="machinery">ATE001</SelectItem>
+                          <SelectItem value="electrical">ATE002</SelectItem>
+                          <SelectItem value="hvac">AMC011</SelectItem>
+                          <SelectItem value="plumbing">PAMD112</SelectItem>
+                          <SelectItem value="it_equipment">AMD001</SelectItem>
+                          <SelectItem value="safety_equipment">AMD002</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1150,14 +1336,14 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                           <SelectValue placeholder="Select Failure Code" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="MEC001">MEC001 - Mechanical Failure</SelectItem>
-                          <SelectItem value="ELC001">ELC001 - Electrical Failure</SelectItem>
-                          <SelectItem value="HYD001">HYD001 - Hydraulic Failure</SelectItem>
-                          <SelectItem value="PNE001">PNE001 - Pneumatic Failure</SelectItem>
-                          <SelectItem value="WEA001">WEA001 - Wear and Tear</SelectItem>
-                          <SelectItem value="CAL001">CAL001 - Calibration Issue</SelectItem>
-                          <SelectItem value="COR001">COR001 - Corrosion</SelectItem>
-                          <SelectItem value="OTH001">OTH001 - Other</SelectItem>
+                          <SelectItem value="MEC001">MEC001</SelectItem>
+                          <SelectItem value="ELC001">ELC001 </SelectItem>
+                          <SelectItem value="HYD001">HYD001 </SelectItem>
+                          <SelectItem value="PNE001">PNE001 </SelectItem>
+                          <SelectItem value="WEA001">WEA001 </SelectItem>
+                          <SelectItem value="CAL001">CAL001 </SelectItem>
+                          <SelectItem value="COR001">COR001 </SelectItem>
+                          <SelectItem value="OTH001">OTH001 </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1213,12 +1399,150 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                 </form>
               </DialogContent>
             </Dialog>
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
-  );
-};
+            </TabsContent>
+            </Tabs>
+            <Dialog open={isPMDialogOpen} onOpenChange={setIsPMDialogOpen}>
+              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Planned Maintenance Form</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {/* Title and Description */}
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <Label>Title</Label>
+                      <Input value={formData.title} onChange={(e) => handleChange("title", e.target.value)} placeholder="Enter PM title" />
+                    </div>
+                    <div>
+                      <Label>Description</Label>
+                      <Textarea value={formData.description} onChange={(e) => handleChange("description", e.target.value)} placeholder="Enter PM description" rows={3} />
+                    </div>
+                  </div>
 
+                  {/* Asset Info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Asset Number</Label>
+                      <Input value={formData.asset_number} onChange={(e) => handleChange("asset_number", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>Asset Group</Label>
+                      <Input value={formData.asset_group} onChange={(e) => handleChange("asset_group", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>Asset Area</Label>
+                      <Select value={formData.asset_area} onValueChange={(val) => handleChange("asset_area", val)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select asset area" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="EN">EN</SelectItem>
+                          <SelectItem value="IT">IT</SelectItem>
+                          <SelectItem value="QA">QA</SelectItem>
+                          <SelectItem value="QC">QC</SelectItem>
+                          <SelectItem value="PD">PD</SelectItem>
+                          <SelectItem value="RD">RD</SelectItem>
+                          <SelectItem value="WH">WH</SelectItem>
+                          <SelectItem value="LINE01">LINE01</SelectItem>
+                          <SelectItem value="LINE02">LINE02</SelectItem>
+                          <SelectItem value="LINE03">LINE03</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Parent Asset</Label>
+                      <Input value={formData.parent_asset} onChange={(e) => handleChange("parent_asset", e.target.value)} />
+                    </div>
+                    
+                  </div>
+
+                  {/* Maintenance Info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Urgency</Label>
+                      <Select onValueChange={(val) => handleChange("urgency", val)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select urgency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>WO Type</Label>
+                      <Select onValueChange={(val) => handleChange("wo_type", val)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PM">PM</SelectItem>
+                          <SelectItem value="PdM">PdM</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="col-span-2">
+                      <Label>Scheduled Maintenance Date</Label>
+                      <Input
+                        type="date"
+                        value={formData.wo_start_date ? formData.wo_start_date.toISOString().split('T')[0] : ''}
+                        onChange={(e) => handleChange("wo_start_date", new Date(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* PM Details */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>PM Name</Label>
+                      <Input value={formData.pm_name} onChange={(e) => handleChange("pm_name", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>Set Name</Label>
+                      <Select value={formData.set_name} onValueChange={(val) => handleChange("set_name", val)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select set name" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="set_a">Calibration</SelectItem>
+                          <SelectItem value="set_b">Pdm Maintenance</SelectItem>
+                          <SelectItem value="set_c">Pdm Utility</SelectItem>
+                          <SelectItem value="set_d">PM Maintenance</SelectItem>
+                          <SelectItem value="main_set">PM Utility</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Asset Activity</Label>
+                    <Textarea value={formData.asset_activity} onChange={(e) => handleChange("asset_activity", e.target.value)} />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsPMDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      className="bg-green-600 hover:bg-green-700 text-white" 
+                      onClick={handleSubmit}
+                    >
+                      Submit Planned Maintenance
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </main>
+        </div>
+      );
+    };
 export default WorkOrdersPage;
-
