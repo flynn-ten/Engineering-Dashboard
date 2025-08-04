@@ -1,0 +1,57 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import pandas as pd
+from engineering_app.ml_utils import DateFeatureExtractor
+from decouple import config
+from sqlalchemy import create_engine
+import joblib
+
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestRegressor
+import numpy as np
+
+# Koneksi ke database
+db_url = f"postgresql://{config('DB_USER')}:{config('DB_PASSWORD')}@{config('DB_HOST')}:{config('DB_PORT')}/{config('DB_NAME')}"
+engine = create_engine(db_url)
+
+# Mengambil data dari database
+try:
+    water_data = pd.read_sql('SELECT * FROM water_daily', engine)
+    print(water_data.head())
+except Exception as e:
+    print(f"Error: {e}")
+    sys.exit()
+
+# Pastikan kolom 'date' sudah dalam format datetime
+water_data['date'] = pd.to_datetime(water_data['date'])
+
+# Feature engineering manual (optional, hanya untuk print preview)
+water_data['month'] = water_data['date'].dt.month
+water_data['day'] = water_data['date'].dt.day
+water_data['quarter'] = water_data['date'].dt.quarter
+water_data['month_quarter'] = ((water_data['month'] - 1) % 4 + 1)
+water_data['day_of_week'] = water_data['date'].dt.weekday + 1
+water_data['month_day'] = water_data['date'].dt.strftime('%m-%d')
+
+print(water_data[['date', 'month', 'day', 'quarter', 'month_day', 'month_quarter', 'day_of_week']].head())
+
+# Split data
+X = water_data[['date']]
+y = water_data['daily_consumption']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Pipeline training
+pipeline = Pipeline([
+    ('date_features', DateFeatureExtractor()),
+    ('model', RandomForestRegressor(n_estimators=100, random_state=42))
+])
+
+pipeline.fit(X_train, y_train)
+
+# Simpan model ke folder ml_models
+os.makedirs('ml_models', exist_ok=True)
+joblib.dump(pipeline, 'ml_models/water_forecasting_pipeline.pkl')
+print("✅ Model air berhasil disimpan ke ml_models/water_forecasting_pipeline.pkl")

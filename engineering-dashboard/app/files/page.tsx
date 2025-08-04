@@ -28,7 +28,6 @@ interface Document {
   description: string;
   uploaded_at: string;
   uploaded_by_name: string;
-  size?: number;
   file_url: string;
 }
 
@@ -78,34 +77,38 @@ export default function FilesPage() {
 
 
   const refreshAccessToken = async () => {
-    try {
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-
-
-      const res = await fetch("http://localhost:8000/api/token/refresh/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-
-
-      if (!res.ok) {
-        throw new Error("Failed to refresh token");
-      }
-
-
-      const data = await res.json();
-      localStorage.setItem("accessToken", data.access);
-      return data.access;
-    } catch (error) {
-      console.error("Token refresh failed:", error);
-      router.push("/login");
-      return null;
+  try {
+    const refreshToken = localStorage.getItem("refresh");
+    if (!refreshToken) {
+      throw new Error("No refresh token available");
     }
-  };
+
+
+    const res = await fetch("http://localhost:8000/api/token/refresh/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+
+
+    if (!res.ok) {
+      throw new Error("Failed to refresh token");
+    }
+
+
+    const data = await res.json();
+    localStorage.setItem("accessToken", data.access);
+    return data.access;
+  } catch (error) {
+    console.error("Token refresh failed:", error);
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refresh");
+    router.push("/login");  // fallback
+    return null;
+  }
+};
+
+
 
 
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
@@ -204,7 +207,31 @@ export default function FilesPage() {
   };
 
 
- 
+  const handleDelete = async (documentId: string, file_url: string) => {
+  if (!confirm("Are you sure you want to delete this document?")) return;
+
+
+  try {
+    const res = await fetchWithAuth(`http://localhost:8000/api/documents/${documentId}/`, {
+      method: "DELETE"
+    });
+
+
+    if (res.ok) {
+      // Refresh files list after deletion
+      const filesRes = await fetchWithAuth("http://localhost:8000/api/documents/");
+      const filesData = await filesRes.json();
+      setFilesData(filesData);
+      alert("Document deleted successfully");
+    } else {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to delete document");
+    }
+  } catch (error) {
+    console.error("Delete error:", error);
+    alert(error.message || "Failed to delete document. Please try again.");
+  }
+};
   const handleUpload = async () => {
     if (!selectedFile) {
       alert("Please choose a file");
@@ -311,7 +338,7 @@ export default function FilesPage() {
 
 
       <main className="flex-1 space-y-6 p-6">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Files</CardTitle>
@@ -332,7 +359,6 @@ export default function FilesPage() {
               <div className="text-2xl font-bold">
                 {formatFileSize(filesData.reduce((acc, file) => acc + (file.size || 0), 0))}
               </div>
-              <p className="text-xs text-muted-foreground">of 1 GB available</p>
             </CardContent>
           </Card>
 
@@ -417,73 +443,77 @@ export default function FilesPage() {
               ) : (
                 filteredFiles.map((file) => (
                   <Card key={file.id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-3 flex-1">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                            <h3 className="text-lg font-semibold">{file.file_name}</h3>
-                            <Badge className={getCategoryColor(file.category)}>
-                              {file.category}
-                            </Badge>
-                            {file.version && (
-                              <Badge variant="outline">{file.version}</Badge>
-                            )}
-                          </div>
+  <CardContent className="p-6">
+    <div className="flex items-start justify-between">
+      <div className="space-y-3 flex-1">
+        <div className="flex items-center gap-3">
+          <FileText className="h-5 w-5 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">{file.file_name}</h3>
+          <Badge className={getCategoryColor(file.category)}>
+            {file.category}
+          </Badge>
+          {file.version && (
+            <Badge variant="outline">{file.version}</Badge>
+          )}
+        </div>
 
 
-                          {file.description && (
-                            <p className="text-sm text-muted-foreground">{file.description}</p>
-                          )}
+        {file.description && (
+          <p className="text-sm text-muted-foreground">{file.description}</p>
+        )}
 
 
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span>By: {file.uploaded_by_name || 'Unknown'}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span>Uploaded: {formatDate(new Date(file.uploaded_at), "dd MMM yyyy")}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">
-                                Size: {file.size ? formatFileSize(file.size) : "N/A"}
-                              </span>
-                            </div>
-                          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <span>By: {file.uploaded_by_name || 'Unknown'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span>Uploaded: {formatDate(new Date(file.uploaded_at), "dd MMM yyyy")}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Folder className="h-4 w-4 text-muted-foreground" />
+            <span>Size: {formatFileSize(file.size || 0)}</span>
+          </div>
+        </div>
 
 
-                          <div className="flex items-center gap-4">
-                            <Button
-                              size="sm"
-                              className="gap-2"
-                              onClick={() => window.open(file.file_url, '_blank')}
-                            >
-                              <Eye className="h-4 w-4" />
-                              View
-                            </Button>
-                          </div>
-                        </div>
+        <div className="flex items-center gap-4 mt-2">
+          <Button
+            size="sm"
+            className="gap-2"
+            onClick={() => window.open(file.file_url, '_blank')}
+          >
+            <Eye className="h-4 w-4" />
+            View
+          </Button>
+        </div>
+      </div>
 
 
-                        {currentRole === "admin" && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit Metadata</DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+      {currentRole === "admin" && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="text-red-600"
+              onClick={() => handleDelete(file.id, file.file_url)}
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  </CardContent>
+</Card>
+
+
                 ))
               )}
             </div>
@@ -696,4 +726,6 @@ export default function FilesPage() {
     </div>
   );
 }
+
+
 

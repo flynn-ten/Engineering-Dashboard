@@ -24,7 +24,6 @@ class UserProfile(models.Model):
     STATUS_CHOICES = [
         ('Active', 'Active'),
         ('Inactive', 'Inactive'),
-        ('Pending', 'Pending'),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='userprofile')
@@ -60,6 +59,7 @@ class WorkRequest(models.Model):
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
         ('in_review', 'In Review'),
+        ('planned', 'Planned'),
     ]
 
     wr_number = models.CharField(max_length=100, unique=True, editable=False)
@@ -138,14 +138,20 @@ class WorkOrder(models.Model):
     set_name = models.CharField(max_length=100, blank=True, null=True)  # Set name
     asset_activity = models.CharField(max_length=100, blank=True, null=True)
 
-    def __str__(self):
-        return self.wo_number
 
     def save(self, *args, **kwargs):
         if not self.wo_number:
             self.wo_number = f"WO-{uuid.uuid4().hex[:6].upper()}"
         super().save(*args, **kwargs)
+        if self.status =='released' and not self.wo_start_date:
+            self.wo_start_date = timezone.now()
+        if self.status == 'completed' and not self.wo_completion_date:
+            self.wo_completion_date = timezone.now()
+            self.actual_duration = self.wo_completion_date - self.wo_start_date
+        super().save(*args, **kwargs)
 
+    def __str__(self):
+        return self.wo_number
 
 # ===============================
 # Analytics, Energy, Document
@@ -185,6 +191,12 @@ class EnergyInput(models.Model):
     def __str__(self):
         return f"{self.type} - {self.meter_number} - {self.date}"
 
+
+
+from django.db import models
+from django.contrib.auth.models import User
+
+
 class Document(models.Model):
     CATEGORY_CHOICES = [
         ("SOP", "SOP"),
@@ -193,6 +205,8 @@ class Document(models.Model):
         ("Specification", "Specification"),
         ("Work Instruction", "Work Instruction"),
     ]
+
+
     DEPARTMENT_CHOICES = [
         ("Engineering", "Engineering"),
         ("Quality", "Quality"),
@@ -200,24 +214,25 @@ class Document(models.Model):
         ("Safety", "Safety"),
         ("Production", "Production"),
     ]
-    STATUS_CHOICES = [
-        ("Draft", "Draft"),
-        ("Active", "Active"),
-        ("Archived", "Archived"),
-    ]
+
+
+
 
     file_name = models.CharField(max_length=255)
-    file_url = models.URLField()
+    file_url = models.URLField()  # Supabase public URL
     version = models.CharField(max_length=20)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     department = models.CharField(max_length=100, choices=DEPARTMENT_CHOICES)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     description = models.TextField(blank=True)
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    size = models.BigIntegerField(null=True, blank=True)
+   
+
 
     def __str__(self):
         return f"{self.file_name} ({self.version})"
+
 
 # ===============================
 # Raw-table models untuk SQL mapping

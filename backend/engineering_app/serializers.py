@@ -108,6 +108,8 @@ class WorkRequestSerializer(serializers.ModelSerializer):
 
 # 🔧 WorkOrder Serializers
 class WorkOrderSerializer(serializers.ModelSerializer):
+    requester = serializers.SerializerMethodField()
+
     class Meta:
         model = WorkOrder
         fields = '__all__'
@@ -115,8 +117,12 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             'wo_number', 'wo_created_at', 'wo_start_date',
             'wo_completion_date', 'actual_duration', 'engineer',
         ]
+
     def get_requester(self, obj):
-        return str(obj.requester) if obj.requester else None
+        if obj.requester:
+            return obj.requester.get_full_name() or str(obj.requester)
+        return None
+
 
 class WorkOrderUpdateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -149,17 +155,6 @@ class WorkOrderStatusSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-# ⚡ EnergyInput Serializer
-class EnergyInputSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = EnergyInput
-        fields = "__all__"
-        read_only_fields = ['user']
-
-    def create(self, validated_data):
-        validated_data['user'] = self.context['request'].user
-        return super().create(validated_data)
-    
 
 
 # 👤 UserProfile serializer (basic)
@@ -225,21 +220,7 @@ class WorkRequestSerializer(serializers.ModelSerializer):
         return obj.requested_by.get_full_name() or obj.requested_by.username
 
 # 🔧 WorkOrder Serializers
-class WorkOrderSerializer(serializers.ModelSerializer):
-    engineer_name = serializers.SerializerMethodField()
 
-    class Meta:
-        model = WorkOrder
-        fields = '__all__'
-        read_only_fields = [
-            'wo_number', 'wo_created_at', 'wo_start_date',
-            'wo_completion_date', 'actual_duration', 'engineer'
-        ]
-
-    def get_engineer_name(self, obj):
-        if obj.engineer:
-            return obj.engineer.get_full_name() or obj.engineer.username
-        return None
 
 class WorkOrderUpdateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -333,3 +314,4 @@ class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
         fields = '__all__'
+

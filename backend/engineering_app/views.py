@@ -1,6 +1,12 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import datetime
 import time
 import uuid
+from engineering_app.ml_utils import DateFeatureExtractor
+
 from django.utils.timezone import now
 from django.utils import timezone  # Tambahan dari baru
 from django.contrib.auth.models import User
@@ -39,6 +45,7 @@ from rest_framework.generics import RetrieveUpdateAPIView, ListCreateAPIView, Up
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import AuditTrail  # Pastikan model sudah ada
+
 def log_audit_action(user, action, model_name, object_id=None, description=""):
     AuditTrail.objects.create(
         user=user,
@@ -787,194 +794,212 @@ def analytic(request):
     return JsonResponse(result, safe=False)
 
 def category_analytics(request):
+    period = request.GET.get("period", "6months")
+    interval = get_interval(period)
+   
     with connection.cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(f"""
             WITH valid_mttr AS (
-    SELECT
-        resource,
-        DATE_TRUNC('month', wo_actual_start_date) AS month,
-        ROUND(AVG(EXTRACT(EPOCH FROM (wo_actual_completion_date - wo_actual_start_date)) / 3600), 1) AS avg_mttr_hours
-    FROM main_data
-    WHERE wo_actual_start_date IS NOT NULL
-      AND wo_actual_completion_date IS NOT NULL
-      AND wo_actual_completion_date >= wo_actual_start_date
-      AND DATE_PART('year', wo_actual_start_date) = 2025
-      AND resource IS NOT NULL
-    GROUP BY resource, DATE_TRUNC('month', wo_actual_start_date)
-),
+                SELECT
+                    resource,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (wo_actual_completion_date - wo_actual_start_date)) / 3600), 1) AS avg_mttr_hours
+                FROM main_data
+                WHERE wo_actual_start_date IS NOT NULL
+                  AND wo_actual_completion_date IS NOT NULL
+                  AND wo_actual_completion_date >= wo_actual_start_date
+                  AND resource IN ('MTC', 'CAL', 'UTY')
+                  AND wo_actual_start_date >= CURRENT_DATE - INTERVAL '{interval}'
+                GROUP BY resource
+            ),
 
-valid_mtbf_raw AS (
-    SELECT
-        resource,
-        actual_failure_date,
-        DATE_TRUNC('month', actual_failure_date) AS month,
-        LAG(actual_failure_date) OVER (PARTITION BY resource ORDER BY actual_failure_date) AS prev_failure_date
-    FROM main_data
-    WHERE actual_failure_date IS NOT NULL
-      AND DATE_PART('year', actual_failure_date) = 2025
-      AND resource IS NOT NULL
-),
 
-valid_mtbf AS (
-    SELECT
-        resource,
-        DATE_TRUNC('month', actual_failure_date) AS month,
-        ROUND(AVG(EXTRACT(EPOCH FROM (actual_failure_date - prev_failure_date)) / 3600), 1) AS avg_mtbf_hours
-    FROM valid_mtbf_raw
-    WHERE prev_failure_date IS NOT NULL
-    GROUP BY resource, DATE_TRUNC('month', actual_failure_date)
-),
+            valid_mtbf_raw AS (
+                SELECT
+                    resource,
+                    actual_failure_date,
+                    LAG(actual_failure_date) OVER (PARTITION BY resource ORDER BY actual_failure_date) AS prev_failure_date
+                FROM main_data
+                WHERE actual_failure_date IS NOT NULL
+                  AND resource IN ('MTC', 'CAL', 'UTY')
+                  AND actual_failure_date >= CURRENT_DATE - INTERVAL '{interval}'
+            ),
 
-work_orders AS (
-    SELECT
-        resource,
-        DATE_TRUNC('month', wo_actual_start_date) AS month,
-        COUNT(*) AS work_order_count
-    FROM main_data
-    WHERE resource IS NOT NULL
-      AND wo_actual_start_date IS NOT NULL
-      AND DATE_PART('year', wo_actual_start_date) = 2025
-    GROUP BY resource, DATE_TRUNC('month', wo_actual_start_date)
-)
 
-SELECT 
-    wo.resource,
-    wo.month,
-    wo.work_order_count,
-    COALESCE(mt.avg_mttr_hours, 0) AS mttr,
-    COALESCE(mb.avg_mtbf_hours, 0) AS mtbf
-FROM work_orders wo
-LEFT JOIN valid_mttr mt ON wo.resource = mt.resource AND wo.month = mt.month
-LEFT JOIN valid_mtbf mb ON wo.resource = mb.resource AND wo.month = mb.month
-ORDER BY wo.resource, wo.month;
+            valid_mtbf AS (
+                SELECT
+                    resource,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (actual_failure_date - prev_failure_date)) / 3600), 1) AS avg_mtbf_hours
+                FROM valid_mtbf_raw
+                WHERE prev_failure_date IS NOT NULL
+                GROUP BY resource
+            ),
+
+
+            work_orders AS (
+                SELECT
+                    resource,
+                    COUNT(*) AS work_order_count
+                FROM main_data
+                WHERE resource IN ('MTC', 'CAL', 'UTY')
+                  AND wo_actual_start_date >= CURRENT_DATE - INTERVAL '{interval}'
+                GROUP BY resource
+            )
+
+
+            SELECT
+                wo.resource,
+                wo.work_order_count,
+                COALESCE(mt.avg_mttr_hours, 0),
+                COALESCE(mb.avg_mtbf_hours, 0)
+            FROM work_orders wo
+            LEFT JOIN valid_mttr mt ON wo.resource = mt.resource
+            LEFT JOIN valid_mtbf mb ON wo.resource = mb.resource;
         """)
 
+
         rows = cursor.fetchall()
+
 
     result = [
         {
             "category": row[0],
-            "date": row[1],
-            "count": row[2],
-            "avgMttr": row[3],
-            "avgMtbf": row[4],
+            "count": row[1],
+            "avgMttr": row[2],
+            "avgMtbf": row[3],
         }
         for row in rows
     ]
 
+
     return JsonResponse(result, safe=False)
 
+
+
 def equipment_analytics(request):
+    period = request.GET.get("period", "6months")
+    interval = get_interval(period)
+   
     with connection.cursor() as cursor:
-        cursor.execute("""
-                        WITH valid_mttr AS (
-            SELECT
-                asset_group,
-                ROUND(AVG(EXTRACT(EPOCH FROM (wo_actual_completion_date - wo_actual_start_date)) / 3600), 1) AS mttr
-            FROM main_data
-            WHERE wo_actual_start_date IS NOT NULL AND wo_actual_completion_date IS NOT NULL
-            GROUP BY asset_group
+        cursor.execute(f"""
+            WITH valid_mttr AS (
+                SELECT
+                    asset_group,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (wo_actual_completion_date - wo_actual_start_date)) / 3600), 1) AS mttr
+                FROM main_data
+                WHERE wo_actual_start_date IS NOT NULL
+                  AND wo_actual_completion_date IS NOT NULL
+                  AND wo_actual_start_date >= CURRENT_DATE - INTERVAL '{interval}'
+                GROUP BY asset_group
             ),
             valid_mtbf_raw AS (
-            SELECT
-                asset_group,
-                actual_failure_date,
-                LAG(actual_failure_date) OVER (PARTITION BY asset_group ORDER BY actual_failure_date) AS prev_failure
-            FROM main_data
-            WHERE actual_failure_date IS NOT NULL
+                SELECT
+                    asset_group,
+                    actual_failure_date,
+                    LAG(actual_failure_date) OVER (PARTITION BY asset_group ORDER BY actual_failure_date) AS prev_failure
+                FROM main_data
+                WHERE actual_failure_date IS NOT NULL
+                  AND actual_failure_date >= CURRENT_DATE - INTERVAL '{interval}'
             ),
             valid_mtbf AS (
-            SELECT
-                asset_group,
-                ROUND(AVG(EXTRACT(EPOCH FROM (actual_failure_date - prev_failure)) / 3600), 1) AS mtbf
-            FROM valid_mtbf_raw
-            WHERE prev_failure IS NOT NULL
-            GROUP BY asset_group
+                SELECT
+                    asset_group,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (actual_failure_date - prev_failure)) / 3600), 1) AS mtbf
+                FROM valid_mtbf_raw
+                WHERE prev_failure IS NOT NULL
+                GROUP BY asset_group
             ),
             failures AS (
-            SELECT asset_group, COUNT(*) AS failure_count
-            FROM main_data
-            WHERE actual_failure_date IS NOT NULL
-            GROUP BY asset_group
+                SELECT asset_group, COUNT(*) AS failure_count
+                FROM main_data
+                WHERE actual_failure_date IS NOT NULL
+                  AND actual_failure_date >= CURRENT_DATE - INTERVAL '{interval}'
+                GROUP BY asset_group
             )
 
-            SELECT 
-            f.asset_group,
-            COALESCE(m.mttr, 0) AS mttr,
-            COALESCE(b.mtbf, 0) AS mtbf,
-            f.failure_count
+
+            SELECT
+                f.asset_group,
+                COALESCE(m.mttr, 0) AS mttr,
+                COALESCE(b.mtbf, 0) AS mtbf,
+                f.failure_count
             FROM failures f
             LEFT JOIN valid_mttr m ON f.asset_group = m.asset_group
             LEFT JOIN valid_mtbf b ON f.asset_group = b.asset_group
             WHERE f.asset_group IS NOT NULL
             ORDER BY f.failure_count DESC
             LIMIT 10;
-
         """)
         rows = cursor.fetchall()
 
+
     result = [
         {
-            "equipment": row[0],       # asset_group
-            "mttr": row[1],            # avg_mttr
-            "mtbf": row[2],            # avg_mtbf
-            "failures": row[3],        # count
+            "equipment": row[0],
+            "mttr": row[1],
+            "mtbf": row[2],
+            "failures": row[3],
         }
         for row in rows
     ]
 
+
     return JsonResponse(result, safe=False)
 
 def monthly_trend(request):
+    period = request.GET.get("period", "6months")
+    interval = get_interval(period)
+   
     with connection.cursor() as cursor:
-        cursor.execute("""
-       WITH monthly_mttr AS (
-    SELECT 
-        TO_CHAR(wo_actual_start_date, 'YYYY-MM') AS month,
-        ROUND(AVG(EXTRACT(EPOCH FROM (wo_actual_completion_date - wo_actual_start_date)) / 3600), 1) AS avg_mttr,
-        COUNT(*) AS work_orders
-    FROM main_data
-    WHERE wo_actual_start_date IS NOT NULL 
-      AND wo_actual_completion_date IS NOT NULL
-      AND wo_actual_start_date >= CURRENT_DATE - INTERVAL '6 months'
-    GROUP BY TO_CHAR(wo_actual_start_date, 'YYYY-MM')
-),
-
-mtbf_raw AS (
-    SELECT 
-        actual_failure_date,
-        TO_CHAR(actual_failure_date, 'YYYY-MM') AS month,
-        LAG(actual_failure_date) OVER (ORDER BY actual_failure_date) AS prev_date
-    FROM main_data
-    WHERE actual_failure_date IS NOT NULL
-      AND actual_failure_date >= CURRENT_DATE - INTERVAL '6 months'
-),
-
-monthly_mtbf AS (
-    SELECT 
-        month,
-        ROUND(AVG(EXTRACT(EPOCH FROM (actual_failure_date - prev_date)) / 3600), 1) AS avg_mtbf
-    FROM mtbf_raw
-    WHERE prev_date IS NOT NULL
-    GROUP BY month
-)
-
-SELECT 
-    mttr.month,
-    mttr.avg_mttr,
-    mtbf.avg_mtbf,
-    mttr.work_orders
-FROM monthly_mttr mttr
-LEFT JOIN monthly_mtbf mtbf ON mttr.month = mtbf.month
-ORDER BY mttr.month;
+        cursor.execute(f"""
+            WITH monthly_mttr AS (
+                SELECT
+                    TO_CHAR(wo_actual_start_date, 'YYYY-MM') AS month,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (wo_actual_completion_date - wo_actual_start_date)) / 3600), 1) AS avg_mttr,
+                    COUNT(*) AS work_orders
+                FROM main_data
+                WHERE wo_actual_start_date IS NOT NULL
+                  AND wo_actual_completion_date IS NOT NULL
+                  AND wo_actual_start_date >= CURRENT_DATE - INTERVAL '{interval}'
+                GROUP BY TO_CHAR(wo_actual_start_date, 'YYYY-MM')
+            ),
 
 
+            mtbf_raw AS (
+                SELECT
+                    actual_failure_date,
+                    TO_CHAR(actual_failure_date, 'YYYY-MM') AS month,
+                    LAG(actual_failure_date) OVER (ORDER BY actual_failure_date) AS prev_date
+                FROM main_data
+                WHERE actual_failure_date IS NOT NULL
+                  AND actual_failure_date >= CURRENT_DATE - INTERVAL '{interval}'
+            ),
+
+
+            monthly_mtbf AS (
+                SELECT
+                    month,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (actual_failure_date - prev_date)) / 3600), 1) AS avg_mtbf
+                FROM mtbf_raw
+                WHERE prev_date IS NOT NULL
+                GROUP BY month
+            )
+
+
+            SELECT
+                mttr.month,
+                mttr.avg_mttr,
+                mtbf.avg_mtbf,
+                mttr.work_orders
+            FROM monthly_mttr mttr
+            LEFT JOIN monthly_mtbf mtbf ON mttr.month = mtbf.month
+            ORDER BY mttr.month;
         """)
         rows = cursor.fetchall()
 
+
     result = [
         {
-            "month": row[0],  # Format 'YYYY-MM'
+            "month": row[0],
             "mttr": row[1],
             "mtbf": row[2],
             "workOrders": row[3],
@@ -984,48 +1009,39 @@ ORDER BY mttr.month;
     return JsonResponse(result, safe=False)
 
 def weekly_downtime(request):
+    period = request.GET.get("period", "6months")
+    interval = get_interval(period)
+   
     with connection.cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
-  DATE_TRUNC('week', wo_actual_start_date) AS week,
-
-  -- Planned downtime in hours (based on WO types)
-  ROUND(SUM(CASE 
-    WHEN wo_type IN (
-      'Preventive Maintenance', 
-      'Predictive Maintenance', 
-      'Planned Maintenance', 
-      'Calibration'
-    ) THEN actual_duration / 3600.0
-    ELSE 0
-  END)::numeric, 2) AS planned_hours,
-
-  -- Unplanned downtime in hours (other or null WO types)
-  ROUND(SUM(CASE 
-    WHEN wo_type IS NULL 
-      OR wo_type NOT IN (
-        'Preventive Maintenance', 
-        'Predictive Maintenance', 
-        'Planned Maintenance', 
-        'Calibration'
-      ) THEN actual_duration / 3600.0
-    ELSE 0
-  END)::numeric, 2) AS unplanned_hours,
-
-  -- Total downtime in hours
-  ROUND(SUM(actual_duration / 3600.0)::numeric, 2) AS total_hours
-
-FROM main_data
-WHERE 
-  wo_actual_start_date IS NOT NULL
-  AND actual_duration IS NOT NULL
-  AND actual_duration BETWEEN 1 AND 10000000
-
-GROUP BY DATE_TRUNC('week', wo_actual_start_date)
-ORDER BY week;
-
+                DATE_TRUNC('week', wo_actual_start_date) AS week,
+                ROUND(SUM(CASE
+                    WHEN wo_type IN (
+                        'Preventive Maintenance',
+                        'Predictive Maintenance',
+                        'Planned Maintenance'
+                    ) THEN actual_duration / 3600.0
+                    ELSE 0
+                END)::numeric, 2) AS planned_hours,
+                ROUND(SUM(CASE
+                    WHEN wo_type IS NULL
+                         OR wo_type = 'Calibration' 
+                            THEN actual_duration / 3600.0
+                    ELSE 0
+                END)::numeric, 2) AS unplanned_hours,
+                ROUND(SUM(actual_duration / 3600.0)::numeric, 2) AS total_hours
+            FROM main_data
+            WHERE
+                wo_actual_start_date IS NOT NULL
+                AND actual_duration IS NOT NULL
+                AND actual_duration BETWEEN 1 AND 10000000
+                AND wo_actual_start_date >= CURRENT_DATE - INTERVAL '{interval}'
+            GROUP BY DATE_TRUNC('week', wo_actual_start_date)
+            ORDER BY week;
         """)
         rows = cursor.fetchall()
+
 
     result = [
         {
@@ -1036,6 +1052,7 @@ ORDER BY week;
         }
         for row in rows
     ]
+
 
     return JsonResponse(result, safe=False)
 
@@ -1120,15 +1137,33 @@ class EnergySubmitView(APIView):
         return Response(serializer.errors, status=400)
 
 from rest_framework.parsers import MultiPartParser, FormParser
-
+from django.db.models.functions import TruncDate
+from django.utils.dateparse import parse_date
 class EnergyInputCreateView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]  # WAJIB untuk FormData
+    parser_classes = [MultiPartParser, FormParser]  # Wajib untuk FormData
 
     def post(self, request):
+        # ✅ Cek apakah sudah ada input untuk type dan date yang sama oleh user
+        existing = EnergyInput.objects.filter(
+            user=request.user,
+            type=request.data.get('type'),
+            date=request.data.get('date')
+        ).exists()
+
+        if existing:
+            return Response(
+                {"error": "Anda sudah menginput data untuk hari ini. Hapus dulu jika ingin input ulang."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ✅ Validasi serializer
         serializer = EnergyInputSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
+            print("🔥 Serializer Error:", serializer.errors)
             instance = serializer.save(user=request.user)
+
+            # ✅ Audit trail
             log_audit_action(
                 user=request.user,
                 action="input",
@@ -1137,7 +1172,7 @@ class EnergyInputCreateView(APIView):
                 description=f"Input energi {instance.type} tanggal {instance.date} meter {instance.meter_number}"
             )
 
-            # Ambil email tujuan dari FormData
+            # ✅ Email notifikasi ke user yang input
             email_to = request.user.email
             if email_to:
                 send_mail(
@@ -1155,9 +1190,9 @@ class EnergyInputCreateView(APIView):
                     fail_silently=True,
                 )
 
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
-
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class UserEnergyInputListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -1270,7 +1305,17 @@ class DocumentUploadView(APIView):
     def post(self, request):
         serializer = DocumentSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(uploaded_by=request.user)
+            document = serializer.save(uploaded_by=request.user)
+
+            # ✅ Audit Trail untuk Upload
+            log_audit_action(
+                user=request.user,
+                action="upload",
+                model_name="Document",
+                object_id=str(document.id),
+                description=f"Upload dokumen '{document.file_name}' kategori {document.category}, versi {document.version}"
+            )
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1296,9 +1341,18 @@ class DocumentUploadView(APIView):
                               status=status.HTTP_403_FORBIDDEN)
            
             doc.delete()
+            log_audit_action(
+                user=request.user,
+                action="delete",
+                model_name="Document",
+                object_id=str(pk),
+                description=f"Hapus dokumen '{doc.file_name}' kategori {doc.category}, versi {doc.version}"
+            )   
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Document.DoesNotExist:
             return Response({"error": "Document not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
 
 
 
@@ -1327,8 +1381,7 @@ class EnergyInputListView(APIView):
 
 
         serializer = EnergyInputSerializer(queryset, many=True)
-        return Response(serializer.data)
-
+        return Response(serializer.data)    
 
 class AuditTrailView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUserProfile]
@@ -1462,3 +1515,243 @@ class AuditTrailListAPIView(APIView):
             for audit in audits
         ]
         return Response(data)
+    
+from django.db import connection
+from django.http import JsonResponse
+from datetime import datetime, timedelta
+
+
+def get_interval(period):
+    if period == "1month":
+        return "30 days"
+    elif period == "3months":
+        return "90 days"
+    elif period == "1year":
+        return "365 days"
+    else:  # default 6months
+        return "180 days"
+def analytic(request):
+    period = request.GET.get("period", "6months")
+    interval = get_interval(period)
+   
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            WITH
+            mttr_data AS (
+                SELECT
+                    DATE(wo_scheduled_start_date) AS date,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (wo_scheduled_completion_date - wo_scheduled_start_date)) / 3600), 2) AS mttr_hours
+                FROM main_data
+                WHERE wo_scheduled_start_date IS NOT NULL
+                  AND wo_scheduled_completion_date IS NOT NULL
+                GROUP BY DATE(wo_scheduled_start_date)
+            ),
+           
+            failure_dates AS (
+                SELECT
+                    MIN(actual_failure_date) AS failure_time
+                FROM main_data
+                WHERE actual_failure_date IS NOT NULL
+                GROUP BY DATE(actual_failure_date), no_asset_of_wo
+            ),
+           
+            failure_with_diff AS (
+                SELECT
+                    failure_time,
+                    failure_time - LAG(failure_time) OVER (ORDER BY failure_time) AS diff
+                FROM failure_dates
+            ),
+           
+            mtbf_data AS (
+                SELECT
+                    DATE(failure_time) AS date,
+                    ROUND(AVG(EXTRACT(EPOCH FROM diff) / 3600), 2) AS mtbf_hours,
+                    COUNT(*) AS failure_count
+                FROM failure_with_diff
+                WHERE diff IS NOT NULL
+                GROUP BY DATE(failure_time)
+            )
+           
+            SELECT
+                COALESCE(mttr_data.date, mtbf_data.date) AS date,
+                mttr_data.mttr_hours,
+                mtbf_data.mtbf_hours,
+                mtbf_data.failure_count
+            FROM mttr_data
+            FULL OUTER JOIN mtbf_data ON mttr_data.date = mtbf_data.date
+            ORDER BY date;
+        """)
+        rows = cursor.fetchall()
+
+
+    result = [
+        {
+            "date": str(row[0]),
+            "mttr_hours": row[1],
+            "mtbf_hours": row[2],
+            "failure_count": row[3]
+        }
+        for row in rows
+    ]
+
+
+    return JsonResponse(result, safe=False)
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import EnergyInput
+from .serializers import EnergyInputSerializer
+from django.shortcuts import get_object_or_404
+# views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import EnergyInput
+from .serializers import EnergyInputSerializer
+from django.shortcuts import get_object_or_404
+
+
+# views.py
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import AuthenticationFailed
+
+class EnergyInputDeleteView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            # Verify token first
+            try:
+                JWTAuthentication().authenticate(request)
+            except AuthenticationFailed:
+                return Response({"error": "Token invalid or expired"}, status=401)
+
+            energy_input = EnergyInput.objects.get(pk=pk, user=request.user)
+            energy_input.delete()
+
+            # ✅ Log audit trail setelah delete
+            log_audit_action(
+                user=request.user,
+                action="delete",
+                model_name="EnergyInput",
+                object_id=str(pk),
+                description=f"Hapus input energi {energy_input.type} tanggal {energy_input.date} meter {energy_input.meter_number}"
+            )
+
+            return Response(status=204)
+        except EnergyInput.DoesNotExist:
+            return Response({"error": "Data tidak ditemukan"}, status=404)
+    
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
+from rest_framework.permissions import IsAdminUser
+
+
+User = get_user_model()
+
+class UserAccountManagementView(APIView):
+    permission_classes = [IsAdminUser]
+   
+    def patch(self, request, user_id):
+        try:
+            user = User.objects.get(pk=user_id)
+           
+            # Toggle active status
+            if 'is_active' in request.data:
+                user.is_active = request.data['is_active']
+                user.save()
+                return Response({
+                    'status': 'success',
+                    'message': f'User account {"activated" if user.is_active else "deactivated"}'
+                })
+           
+            # Change password
+            elif 'new_password' in request.data:
+                new_password = request.data['new_password']
+                if len(new_password) < 6:
+                    return Response(
+                        {'error': 'Password must be at least 6 characters'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                user.password = make_password(new_password)
+                user.save()
+                return Response({
+                    'status': 'success',
+                    'message': 'Password updated successfully'
+                })
+           
+            return Response(
+                {'error': 'Invalid operation'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+           
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from datetime import datetime
+import pandas as pd
+import os
+import joblib
+
+class PredictCNGView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            model_path = os.path.join(settings.BASE_DIR, "engineering_app", "ml_models", "cng_forecasting_pipeline.pkl")
+            pipeline = joblib.load(model_path)
+
+            today = pd.DataFrame([{"date": datetime.today()}])
+            prediction = pipeline.predict(today)
+
+            return Response({"predicted_cng": round(float(prediction[0]), 2)})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+class PredictElectricityAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            model_path = os.path.join(settings.BASE_DIR, "engineering_app", "ml_models", "electricity_forecasting_pipeline.pkl")
+            pipeline = joblib.load(model_path)
+
+            today = pd.DataFrame([{"date": datetime.today()}])
+            prediction = pipeline.predict(today)
+
+            return Response({"predicted_electricity": round(float(prediction[0]), 2)})
+        except Exception as e:
+            return Response({"error": f"Prediction error: {str(e)}"}, status=500)
+
+class PredictWaterAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            model_path = os.path.join(settings.BASE_DIR, "engineering_app", "ml_models", "water_forecasting_pipeline.pkl")
+            pipeline = joblib.load(model_path)
+
+            today = pd.DataFrame([{"date": datetime.today()}])
+            prediction = pipeline.predict(today)
+
+            return Response({"predicted_water": round(float(prediction[0]), 2)})
+        except Exception as e:
+            return Response({"error": f"Prediction error: {str(e)}"}, status=500)
+
+

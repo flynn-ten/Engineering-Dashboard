@@ -174,7 +174,7 @@ const handleSendReport = async () => {
           console.warn("Token expired. Trying to refresh...");
 
 
-          const refreshToken = localStorage.getItem("refreshToken");
+          const refreshToken = localStorage.getItem("refresh");
           const refreshRes = await fetch("http://localhost:8000/api/token/refresh/", {
             method: "POST",
             headers: {
@@ -187,7 +187,7 @@ const handleSendReport = async () => {
           if (!refreshRes.ok) {
             console.error("Failed to refresh token, logging out...");
             localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("refresh");
             window.location.replace("/login");
             throw new Error("Refresh token invalid, please login again");
           }
@@ -235,7 +235,7 @@ const handleSendReport = async () => {
       });
 
       if (res.status === 401) {
-        const refreshToken = localStorage.getItem("refreshToken");
+        const refreshToken = localStorage.getItem("refresh");
         const refreshRes = await fetch("http://localhost:8000/api/token/refresh/", {
           method: "POST",
           headers: {

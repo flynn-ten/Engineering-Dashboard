@@ -1,237 +1,193 @@
-'use client';
+  'use client';
 
-import React, { useEffect, useState } from "react";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Calendar, Clock, User, Wrench, AlertCircle, CheckCircle, MoreHorizontal, XCircle, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+  import React, { useEffect, useState } from "react";
+  import { SidebarTrigger } from "@/components/ui/sidebar";
+  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  import { Search, Calendar, Clock, User, Wrench, AlertCircle, CheckCircle, MoreHorizontal, XCircle, Plus } from "lucide-react"
+  import { Button } from "@/components/ui/button";
+  import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+  import { Badge } from "@/components/ui/badge";
+  import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+  import { Input } from "@/components/ui/input";
+  import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+  import { Alert, AlertDescription } from "@/components/ui/alert";
+  import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+  import { Label } from "@/components/ui/label";
+  import { Textarea } from "@/components/ui/textarea";
 
-const WorkOrdersPage = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [wo_no, setWo_no] = useState(null);
-  const [title, setTitle] = useState("");
-  const [wo_created_date, setWo_created_date] = useState("");
-  const [wo_status, setWo_status] = useState("");
-  const [wo_description, setWo_description] = useState("");
-  const [wo_type, setWo_type] = useState("");
-  const [wr_requestor, setWr_requestor] = useState("");
-  const [wo_actual_completion_date, setWo_actual_completion_date] = useState("");
-  const [actual_duration, setActual_duration] = useState(null);
-  const [year, setYear] = useState(null);
-  const [month, setMonth] = useState(null);
-  const [week_of_month, setWeek_of_month] = useState<number | null>(null);
-  const [resource, setResource] = useState("");
-  const [workOrders, setWorkOrders] = useState<any[]>([]);
-  const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
-  const [workRequests, setWorkRequests] = useState<any[]>([]);
-  const [workOrder, setWorkOrder] = useState<any>(null);
-  const [isLoadingRequests, setIsLoadingRequests] = useState(true);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [engineer_name, setEngineerName] = useState("");
+  const WorkOrdersPage = () => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [wo_no, setWo_no] = useState(null);
+    const [title, setTitle] = useState("");
+    const [wo_created_date, setWo_created_date] = useState("");
+    const [wo_status, setWo_status] = useState("");
+    const [wo_description, setWo_description] = useState("");
+    const [wo_type, setWo_type] = useState("");
+    const [wr_requestor, setWr_requestor] = useState("");
+    const [wo_actual_completion_date, setWo_actual_completion_date] = useState("");
+    const [actual_duration, setActual_duration] = useState(null);
+    const [year, setYear] = useState(null);
+    const [month, setMonth] = useState(null);
+    const [week_of_month, setWeek_of_month] = useState<number | null>(null);
+    const [resource, setResource] = useState("");
+    const [workOrders, setWorkOrders] = useState<any[]>([]);
+    const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
+    const [workRequests, setWorkRequests] = useState<any[]>([]);
+    const [workOrder, setWorkOrder] = useState<any>(null);
+    const [isLoadingRequests, setIsLoadingRequests] = useState(true);
+    const [accessToken, setAccessToken] = useState<string | null>(null);
+    const [engineer_name, setEngineerName] = useState("");
 
-  // New states for work order form functionality
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
-  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
-  const [workOrderForm, setWorkOrderForm] = useState({
-    asset_area: '',
-    asset_group: '',
-    failure_cause: '',
-    failure_code: '',
-    failure_asset: '',
-    resolution: ''
-  });
-  // Changed to track work orders that have been form-completed (ready for completion)
-  const [formCompletedWorkOrders, setFormCompletedWorkOrders] = useState<Set<string>>(new Set());
+    // New states for work order form functionality
+    const [selectedWorkOrder, setSelectedWorkOrder] = useState<any>(null);
+    const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+    const [workOrderForm, setWorkOrderForm] = useState({
+      asset_area: '',
+      asset_group: '',
+      failure_cause: '',
+      failure_code: '',
+      failure_asset: '',
+      resolution: ''
+    });
+    // Changed to track work orders that have been form-completed (ready for completion)
+    const [formCompletedWorkOrders, setFormCompletedWorkOrders] = useState<Set<string>>(new Set());
 
-  const [isPMDialogOpen, setIsPMDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    asset_number: "",
-    asset_group: "",
-    asset_area: "",
-    parent_asset: "",
-    urgency: "",
-    wo_type: "",
-    wo_start_date: new Date(),
-    pm_name: "",
-    set_name: "",
-    asset_activity: "",
-  });
+    const [isPMDialogOpen, setIsPMDialogOpen] = useState(false);
+    const [formData, setFormData] = useState({
+      title: "",
+      description: "",
+      asset_number: "",
+      asset_group: "",
+      asset_area: "",
+      parent_asset: "",
+      urgency: "",
+      wo_type: "",
+      wo_start_date: new Date(),
+      pm_name: "",
+      set_name: "",
+      asset_activity: "",
+    });
+    const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+    const [selectedWorkOrderDetails, setSelectedWorkOrderDetails] = useState<any>(null);
 
-  // Remove hardcoded data - we'll fetch from API instead
-  const workingRequests = Array.isArray(workRequests) ? workRequests.filter(req => req.status === "pending" || req.status === "In Review") : [];
-  
-  // Get unreleased work orders for work order tab - ensure filteredWorkOrders is an array
-  // Handle both "Unreleased" and "unreleased" status values using wo.status
-  const unreleasedWorkOrders = Array.isArray(filteredWorkOrders) ? 
-    filteredWorkOrders.filter(wo => 
-      wo.status && (wo.status.toLowerCase() === "unreleased")
-    ) : [];
+    // Remove hardcoded data - we'll fetch from API instead
+    const workingRequests = Array.isArray(workRequests) ? workRequests.filter(req => req.status === "pending" || req.status === "In Review") : [];
+    
+    // Get unreleased work orders for work order tab - ensure filteredWorkOrders is an array
+    // Handle both "Unreleased" and "unreleased" status values using wo.status
+    const unreleasedWorkOrders = Array.isArray(filteredWorkOrders) ? 
+      filteredWorkOrders.filter(wo => 
+        wo.status && (wo.status.toLowerCase() === "unreleased")
+      ) : [];
 
-  // Get released work orders that are ready to complete
-  const releasedWorkOrders = Array.isArray(filteredWorkOrders) ? 
-    filteredWorkOrders.filter(wo => 
-      wo.status && (wo.status.toLowerCase() === "released")
-    ) : [];
+    // Get released work orders that are ready to complete
+    const releasedWorkOrders = Array.isArray(filteredWorkOrders) ? 
+      filteredWorkOrders.filter(wo => 
+        wo.status && (wo.status.toLowerCase() === "released")
+      ) : [];
 
 
-  const formatDuration = (duration: string): string => {
-  const [hours, minutes] = duration.split(":");
-  const h = parseInt(hours);
-  const m = parseInt(minutes);
-  
+    const formatDuration = (duration: string): string => {
+    const [hours, minutes] = duration.split(":");
+    const h = parseInt(hours);
+    const m = parseInt(minutes);
+    
 
+    return h > 0 ? `${h} jam ${m} menit` : `${m} menit`;
+  };
+  const formatDurationSeconds = (seconds: number): string => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   return h > 0 ? `${h} jam ${m} menit` : `${m} menit`;
 };
 
-  useEffect(() => {
-    // Hanya berjalan di client
-    const token = localStorage.getItem("accessToken")
-    setAccessToken(token)
+const handleViewDetails = (workOrder: any) => {
+  setSelectedWorkOrderDetails(workOrder);
+  setIsDetailsDialogOpen(true);
+};
 
-    if (token) {
-      fetch("http://localhost:8000/api/work-orders/", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
-        .then(async (res) => {
-          if (res.status === 401) {
-            // Try to refresh token
-            const newToken = await refreshAccessToken();
-            if (newToken) {
-              // Retry with new token
-              const retryRes = await fetch("http://localhost:8000/api/work-orders/", {
-                headers: {
-                  Authorization: `Bearer ${newToken}`,
-                  "Content-Type": "application/json",
-                },
-              });
-              if (retryRes.ok) {
-                const data = await retryRes.json();
-                console.log("Data:", data)
-                setWorkOrders(Array.isArray(data) ? data : [])
-                return;
-              }
-            }
-            // If refresh fails, redirect to login or show error
-            console.error("Authentication failed. Please login again.");
-            setWorkOrders([]);
-            return;
-          }
-          
-          if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-          }
-          
-          const data = await res.json();
-          console.log("Data:", data)
-          // Ensure data is an array before setting
-          setWorkOrders(Array.isArray(data) ? data : [])
-        })
-        .catch((err) => {
-          console.error("Error fetching work orders", err)
-          setWorkOrders([]) // Set empty array on error
-        })
-    } else {
-      console.error("No access token found. Please login.");
-      setWorkOrders([]);
-    }
-  }, []);
 
-  async function refreshAccessToken() {
-    const refresh = localStorage.getItem("refresh");
-    if (!refresh) return null;
+    useEffect(() => {
+      // Hanya berjalan di client
+      const token = localStorage.getItem("accessToken")
+      setAccessToken(token)
 
-    const res = await fetch("http://localhost:8000/api/token/refresh/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      localStorage.setItem("accessToken", data.access);
-      return data.access;
-    } else {
-      console.error("Failed to refresh token");
-      return null;
-    }
-  }
-
-  const handleApprove = async (requestId: string) => {
-    let token = localStorage.getItem("accessToken");
-
-    if (!token) {
-      alert("No token found.");
-      return;
-    }
-
-    const res = await fetch(`http://localhost:8000/api/work-request/update-status/${requestId}/`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status: "approved" }),
-    });
-
-    if (res.status === 401) {
-      // coba refresh token
-      const newToken = await refreshAccessToken();
-      if (newToken) {
-        // retry with new token
-        const retry = await fetch(`http://localhost:8000/api/work-request/update-status/${requestId}/`, {
-          method: "PATCH",
+      if (token) {
+        fetch("http://localhost:8000/api/work-orders/", {
           headers: {
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
-            Authorization: `Bearer ${newToken}`,
           },
-          body: JSON.stringify({ status: "approved" }),
-        });
-
-        if (retry.ok) {
-          alert(`Request ${requestId} approved!`);
-          fetchWorkRequests();
-          return;
-        } else {
-          const data = await retry.json();
-          alert(`Retry failed: ${data.detail || "Unknown error"}`);
-          return;
-        }
+        })
+          .then(async (res) => {
+            if (res.status === 401) {
+              // Try to refresh token
+              const newToken = await refreshAccessToken();
+              if (newToken) {
+                // Retry with new token
+                const retryRes = await fetch("http://localhost:8000/api/work-orders/", {
+                  headers: {
+                    Authorization: `Bearer ${newToken}`,
+                    "Content-Type": "application/json",
+                  },
+                });
+                if (retryRes.ok) {
+                  const data = await retryRes.json();
+                  console.log("Data:", data)
+                  setWorkOrders(Array.isArray(data) ? data : [])
+                  return;
+                }
+              }
+              // If refresh fails, redirect to login or show error
+              console.error("Authentication failed. Please login again.");
+              setWorkOrders([]);
+              return;
+            }
+            
+            if (!res.ok) {
+              throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            
+            const data = await res.json();
+            console.log("Data:", data)
+            // Ensure data is an array before setting
+            setWorkOrders(Array.isArray(data) ? data : [])
+          })
+          .catch((err) => {
+            console.error("Error fetching work orders", err)
+            setWorkOrders([]) // Set empty array on error
+          })
       } else {
-        alert("Session expired. Please login again.");
-        return;
+        console.error("No access token found. Please login.");
+        setWorkOrders([]);
+      }
+    }, []);
+
+    async function refreshAccessToken() {
+      const refresh = localStorage.getItem("refresh");
+      if (!refresh) return null;
+
+      const res = await fetch("http://localhost:8000/api/token/refresh/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("accessToken", data.access);
+        return data.access;
+      } else {
+        console.error("Failed to refresh token");
+        return null;
       }
     }
 
-    const data = await res.json();
-    if (res.ok) {
-      alert(`Request ${requestId} approved!`);
-      fetchWorkRequests();
-    } else {
-      alert(`Failed to approve: ${data.detail || "Unknown error"}`);
-    }
-  };
+    const handleApprove = async (requestId: string) => {
+      let token = localStorage.getItem("accessToken");
 
-  const handleCancel = async (requestId: string) => {
-    try {
-      // Use the correct token key that matches your other components
-      const token = localStorage.getItem("accessToken");
-      
       if (!token) {
-        alert("No authentication token found. Please login again.");
+        alert("No token found.");
         return;
       }
 
@@ -241,245 +197,137 @@ const WorkOrdersPage = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status: "rejected" }),
+        body: JSON.stringify({ status: "approved" }),
       });
 
-      // Check if response is actually JSON
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        console.error("Server returned non-JSON response:", await res.text());
-        alert(`Server error: Expected JSON response but got ${contentType}`);
-        return;
+      if (res.status === 401) {
+        // coba refresh token
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          // retry with new token
+          const retry = await fetch(`http://localhost:8000/api/work-request/update-status/${requestId}/`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${newToken}`,
+            },
+            body: JSON.stringify({ status: "approved" }),
+          });
+
+          if (retry.ok) {
+            alert(`Request ${requestId} approved!`);
+            fetchWorkRequests();
+            return;
+          } else {
+            const data = await retry.json();
+            alert(`Retry failed: ${data.detail || "Unknown error"}`);
+            return;
+          }
+        } else {
+          alert("Session expired. Please login again.");
+          return;
+        }
       }
 
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
-        alert(`Request ${requestId} has been cancelled.`);
-        // Refresh the work requests list
+        alert(`Request ${requestId} approved!`);
         fetchWorkRequests();
       } else {
-        const data = await res.json();
-        alert(`Failed to cancel: ${data.error || data.message || 'Unknown error'}`);
+        alert(`Failed to approve: ${data.detail || "Unknown error"}`);
       }
-    } catch (err) {
-      console.error("Error rejecting:", err);
-      alert("Error occurred while cancelling request. Please check the console for details.");
-    }
-  };
+    };
 
-  // New function to handle work order click
-  const handleWorkOrderClick = (workOrder: any) => {
-    setSelectedWorkOrder(workOrder);
-    setIsFormDialogOpen(true);
-  };
-
-  const handleChange = (key: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const handleSubmit = async () => {
-  const token = localStorage.getItem("accessToken");
-  console.log("🔐 Token used:", token);
-
-  try {
-    const response = await fetch("http://localhost:8000/api/planned-maintenance/create/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(formData),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Response error:", errorText);
-      throw new Error("Gagal submit PM");
-    }
-
-    const data = await response.json();
-    console.log("✅ Submit success:", data);
-    alert("Planned Maintenance berhasil disimpan!");
-  } catch (err) {
-    console.error("Gagal submit:", err);
-  }
-};
-
-
-  // Updated form submission function
-const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!selectedWorkOrder) {
-    alert("No work order selected.");
-    return;
-  }
-
-  try {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      alert("No authentication token found. Please login again.");
-      return;
-    }
-
-    console.log("Submitting form for work order:", selectedWorkOrder);
-    console.log("Form data:", workOrderForm);
-
-    const currentTimestamp = new Date().toISOString();
-
-    const possibleEndpoints = [
-      `http://localhost:8000/api/work-orders/${selectedWorkOrder.id}/`,
-      `http://localhost:8000/api/work-orders/${selectedWorkOrder.no}/`,
-      `http://localhost:8000/api/work-order/${selectedWorkOrder.id}/`,
-      `http://localhost:8000/api/work-order/${selectedWorkOrder.no}/`
-    ];
-
-    let response = null;
-    let successfulEndpoint = null;
-
-    for (const endpoint of possibleEndpoints) {
+    const handleCancel = async (requestId: string) => {
       try {
-        console.log("Trying endpoint:", endpoint);
+        // Use the correct token key that matches your other components
+        const token = localStorage.getItem("accessToken");
         
-        response = await fetch(endpoint, {
+        if (!token) {
+          alert("No authentication token found. Please login again.");
+          return;
+        }
+
+        const res = await fetch(`http://localhost:8000/api/work-request/update-status/${requestId}/`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            asset_area: workOrderForm.asset_area,
-            asset_group: workOrderForm.asset_group,
-            failure_cause: workOrderForm.failure_cause,
-            failure_code: workOrderForm.failure_code,
-            failure_asset: workOrderForm.failure_asset,
-            resolution: workOrderForm.resolution,
-            status: "released",
-            wo_start_date: currentTimestamp
-          }),
+          body: JSON.stringify({ status: "rejected" }),
         });
 
-        if (response.status === 404) {
-          console.log("Endpoint not found, trying next...");
-          continue;
+        // Check if response is actually JSON
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error("Server returned non-JSON response:", await res.text());
+          alert(`Server error: Expected JSON response but got ${contentType}`);
+          return;
         }
 
-        if (response.status === 401) {
-          const newToken = await refreshAccessToken();
-          if (newToken) {
-            response = await fetch(endpoint, {
-              method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${newToken}`,
-              },
-              body: JSON.stringify({
-                asset_area: workOrderForm.asset_area,
-                asset_group: workOrderForm.asset_group,
-                failure_cause: workOrderForm.failure_cause,
-                failure_code: workOrderForm.failure_code,
-                failure_asset: workOrderForm.failure_asset,
-                resolution: workOrderForm.resolution,
-                status: "released",
-                wo_start_date: currentTimestamp
-              }),
-            });
-          }
+        if (res.ok) {
+          const data = await res.json();
+          alert(`Request ${requestId} has been cancelled.`);
+          // Refresh the work requests list
+          fetchWorkRequests();
+        } else {
+          const data = await res.json();
+          alert(`Failed to cancel: ${data.error || data.message || 'Unknown error'}`);
         }
-
-        successfulEndpoint = endpoint;
-        break;
-      } catch (fetchError) {
-        console.log("Error with endpoint:", endpoint, fetchError);
-        continue;
+      } catch (err) {
+        console.error("Error rejecting:", err);
+        alert("Error occurred while cancelling request. Please check the console for details.");
       }
+    };
+
+    // New function to handle work order click
+    const handleWorkOrderClick = (workOrder: any) => {
+      setSelectedWorkOrder(workOrder);
+      setIsFormDialogOpen(true);
+    };
+
+    const handleChange = (key: string, value: any) => {
+      setFormData((prev) => ({ ...prev, [key]: value }))
     }
 
-    if (!response) {
-      alert("Unable to connect to any API endpoint. Please check your connection.");
+    const handleSubmit = async () => {
+    const token = localStorage.getItem("accessToken");
+    console.log("🔐 Token used:", token);
+
+    try {
+      const response = await fetch("http://localhost:8000/api/planned-maintenance/create/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Response error:", errorText);
+        throw new Error("Gagal submit PM");
+      }
+
+      const data = await response.json();
+      console.log("✅ Submit success:", data);
+      alert("Planned Maintenance berhasil disimpan!");
+    } catch (err) {
+      console.error("Gagal submit:", err);
+    }
+  };
+
+
+    // Updated form submission function
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedWorkOrder) {
+      alert("No work order selected.");
       return;
     }
 
-    console.log("Response status:", response.status);
-    console.log("Response headers:", response.headers);
-
-    const contentType = response.headers.get("content-type");
-    
-    if (response.ok) {
-      let responseData = {};
-      
-      if (contentType && contentType.includes("application/json")) {
-        try {
-          responseData = await response.json();
-        } catch (jsonError) {
-          console.log("Response is not valid JSON, but request was successful");
-        }
-      }
-      
-      console.log('Form submitted successfully:', workOrderForm);
-      console.log('API Response:', responseData);
-      
-      const workOrderId = selectedWorkOrder.no || selectedWorkOrder.id;
-      setFormCompletedWorkOrders(prev => new Set([...prev, workOrderId]));
-      
-      setWorkOrders(prevWorkOrders => 
-        prevWorkOrders.map(wo => 
-          (wo.wo_number === selectedWorkOrder.no || wo.id === selectedWorkOrder.id)
-            ? { 
-                ...wo, 
-                status: "released",
-                wo_start_date: currentTimestamp 
-              }
-            : wo
-        )
-      );
-
-      
-
-      setIsFormDialogOpen(false);
-
-      setWorkOrderForm({
-        asset_area: '',
-        asset_group: '',
-        failure_cause: '',
-        failure_code: '',
-        failure_asset: '',
-        resolution: ''
-      });
-
-      // Auto-refresh from backend
-
-
-      alert('Work Order form submitted successfully! Status updated to Released.');
-    } else {
-      let errorData = {};
-      
-      if (contentType && contentType.includes("application/json")) {
-        try {
-          errorData = await response.json();
-        } catch (jsonError) {
-          errorData = { error: "Server returned non-JSON error response" };
-        }
-      } else {
-        const textResponse = await response.text();
-        errorData = { error: textResponse || "Unknown server error" };
-      }
-      
-      console.error("Failed to submit form:", errorData);
-      console.error("Response status:", response.status);
-      console.error("Successful endpoint was:", successfulEndpoint);
-      
-      alert(`Failed to submit work order form: ${JSON.stringify(errorData)}`);
-    }
-  } catch (error) {
-    console.error('Error submitting form:', error);
-    alert(`Error occurred while submitting form: ${error.message}`);
-  }
-};
-
-
-  // Updated function to handle complete work order
-  const handleCompleteWorkOrder = async (workOrderNo: string) => {
     try {
       const token = localStorage.getItem("accessToken");
       if (!token) {
@@ -487,438 +335,1282 @@ const handleFormSubmit = async (e: React.FormEvent) => {
         return;
       }
 
-      // Find the work order by number from the current work orders state
-      const workOrderToComplete = workOrders.find(wo => wo.wo_number === workOrderNo || wo.id === workOrderNo);
-      if (!workOrderToComplete) {
-        alert("Work order not found.");
+      console.log("Submitting form for work order:", selectedWorkOrder);
+      console.log("Form data:", workOrderForm);
+
+      const currentTimestamp = new Date().toISOString();
+
+      const possibleEndpoints = [
+        `http://localhost:8000/api/work-orders/${selectedWorkOrder.id}/`,
+        `http://localhost:8000/api/work-orders/${selectedWorkOrder.no}/`,
+        `http://localhost:8000/api/work-order/${selectedWorkOrder.id}/`,
+        `http://localhost:8000/api/work-order/${selectedWorkOrder.no}/`
+      ];
+
+      let response = null;
+      let successfulEndpoint = null;
+
+      for (const endpoint of possibleEndpoints) {
+        try {
+          console.log("Trying endpoint:", endpoint);
+          
+          response = await fetch(endpoint, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              asset_area: workOrderForm.asset_area,
+              asset_group: workOrderForm.asset_group,
+              failure_cause: workOrderForm.failure_cause,
+              failure_code: workOrderForm.failure_code,
+              failure_asset: workOrderForm.failure_asset,
+              resolution: workOrderForm.resolution,
+              status: "released",
+              wo_start_date: currentTimestamp
+            }),
+          });
+
+          if (response.status === 404) {
+            console.log("Endpoint not found, trying next...");
+            continue;
+          }
+
+          if (response.status === 401) {
+            const newToken = await refreshAccessToken();
+            if (newToken) {
+              response = await fetch(endpoint, {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${newToken}`,
+                },
+                body: JSON.stringify({
+                  asset_area: workOrderForm.asset_area,
+                  asset_group: workOrderForm.asset_group,
+                  failure_cause: workOrderForm.failure_cause,
+                  failure_code: workOrderForm.failure_code,
+                  failure_asset: workOrderForm.failure_asset,
+                  resolution: workOrderForm.resolution,
+                  status: "released",
+                  wo_start_date: currentTimestamp
+                }),
+              });
+            }
+          }
+
+          successfulEndpoint = endpoint;
+          break;
+        } catch (fetchError) {
+          console.log("Error with endpoint:", endpoint, fetchError);
+          continue;
+        }
+      }
+
+      if (!response) {
+        alert("Unable to connect to any API endpoint. Please check your connection.");
         return;
       }
 
-      // Update work order status to "Complete"
-      const response = await fetch(`http://localhost:8000/api/work-orders/status/${workOrderToComplete.wo_number}/`, {
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
 
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          status: "completed"
-        }),
-      });
-
+      const contentType = response.headers.get("content-type");
+      
       if (response.ok) {
-        console.log('Completing work order:', workOrderNo);
+        let responseData = {};
         
-        // Remove from form-completed set
-        setFormCompletedWorkOrders(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(workOrderNo);
-          return newSet;
-        });
-
-        // Update the work order in the local state
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            responseData = await response.json();
+          } catch (jsonError) {
+            console.log("Response is not valid JSON, but request was successful");
+          }
+        }
+        
+        console.log('Form submitted successfully:', workOrderForm);
+        console.log('API Response:', responseData);
+        
+        const workOrderId = selectedWorkOrder.no || selectedWorkOrder.id;
+        setFormCompletedWorkOrders(prev => new Set([...prev, workOrderId]));
+        
         setWorkOrders(prevWorkOrders => 
           prevWorkOrders.map(wo => 
-            (wo.wo_number === workOrderNo || wo.id === workOrderNo)
-              ? { ...wo, status: "completed" } // Update status field
+            (wo.wo_number === selectedWorkOrder.no || wo.id === selectedWorkOrder.id)
+              ? { 
+                  ...wo, 
+                  status: "released",
+                  wo_start_date: currentTimestamp 
+                }
               : wo
           )
         );
 
-        // Also update filteredWorkOrders
         
-        
-        alert('Work Order completed successfully!');
+
+        setIsFormDialogOpen(false);
+
+        setWorkOrderForm({
+          asset_area: '',
+          asset_group: '',
+          failure_cause: '',
+          failure_code: '',
+          failure_asset: '',
+          resolution: ''
+        });
+
+        // Auto-refresh from backend
+
+
+        alert('Work Order form submitted successfully! Status updated to Released.');
       } else {
-        const errorData = await response.json();
-        console.error("Failed to complete work order:", errorData);
-        alert('Failed to complete work order. Please try again.');
+        let errorData = {};
+        
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            errorData = await response.json();
+          } catch (jsonError) {
+            errorData = { error: "Server returned non-JSON error response" };
+          }
+        } else {
+          const textResponse = await response.text();
+          errorData = { error: textResponse || "Unknown server error" };
+        }
+        
+        console.error("Failed to submit form:", errorData);
+        console.error("Response status:", response.status);
+        console.error("Successful endpoint was:", successfulEndpoint);
+        
+        alert(`Failed to submit work order form: ${JSON.stringify(errorData)}`);
       }
     } catch (error) {
-      console.error('Error completing work order:', error);
-      alert('Failed to complete work order');
+      console.error('Error submitting form:', error);
+      alert(`Error occurred while submitting form: ${error.message}`);
     }
   };
 
-  // Fetch work requests from API
-  const fetchWorkRequests = async () => {
-    try {
-      setIsLoadingRequests(true);
-      
-      // Get authentication token
-      const token = localStorage.getItem("accessToken");
-      
-      const headers: HeadersInit = {
-        "Content-Type": "application/json",
-      };
-      
-      // Add authorization header if token exists
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-      
-      const response = await fetch("http://localhost:8000/api/work-request/", {
-        method: "GET",
-        headers: headers,
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      // Ensure data is an array before setting
-      setWorkRequests(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Error fetching work requests:", error);
-      // Keep empty array as fallback
-      setWorkRequests([]);
-    } finally {
-      setIsLoadingRequests(false);
-    }
-  };
 
-  // Fetching data from API
-  useEffect(() => {
-    const fetchWorkOrders = async () => {
+    // Updated function to handle complete work order
+    const handleCompleteWorkOrder = async (workOrderNo: string) => {
       try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+          alert("No authentication token found. Please login again.");
+          return;
+        }
+
+        // Find the work order by number from the current work orders state
+        const workOrderToComplete = workOrders.find(wo => wo.wo_number === workOrderNo || wo.id === workOrderNo);
+        if (!workOrderToComplete) {
+          alert("Work order not found.");
+          return;
+        }
+
+        // Update work order status to "Complete"
+        const response = await fetch(`http://localhost:8000/api/work-orders/status/${workOrderToComplete.wo_number}/`, {
+
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: "completed"
+          }),
+        });
+
+        if (response.ok) {
+          console.log('Completing work order:', workOrderNo);
+          
+          // Remove from form-completed set
+          setFormCompletedWorkOrders(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(workOrderNo);
+            return newSet;
+          });
+
+          // Update the work order in the local state
+          setWorkOrders(prevWorkOrders => 
+            prevWorkOrders.map(wo => 
+              (wo.wo_number === workOrderNo || wo.id === workOrderNo)
+                ? { ...wo, status: "completed" } // Update status field
+                : wo
+            )
+          );
+
+          // Also update filteredWorkOrders
+          
+          
+          alert('Work Order completed successfully!');
+        } else {
+          const errorData = await response.json();
+          console.error("Failed to complete work order:", errorData);
+          alert('Failed to complete work order. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error completing work order:', error);
+        alert('Failed to complete work order');
+      }
+    };
+
+    // Fetch work requests from API
+    const fetchWorkRequests = async () => {
+      try {
+        setIsLoadingRequests(true);
+        
+        // Get authentication token
         const token = localStorage.getItem("accessToken");
         
         const headers: HeadersInit = {
           "Content-Type": "application/json",
         };
         
+        // Add authorization header if token exists
         if (token) {
           headers.Authorization = `Bearer ${token}`;
         }
-
-        const response = await fetch("http://localhost:8000/api/work-orders/", {
+        
+        const response = await fetch("http://localhost:8000/api/work-request/", {
+          method: "GET",
           headers: headers,
         });
-
-        if (response.status === 401) {
-          // Try to refresh token
-          const newToken = await refreshAccessToken();
-          if (newToken) {
-            // Retry with new token
-            const retryResponse = await fetch("http://localhost:8000/api/work-orders/", {
-              headers: {
-                ...headers,
-                Authorization: `Bearer ${newToken}`,
-              },
-            });
-            
-            if (retryResponse.ok) {
-              const data = await retryResponse.json();
-              const workOrdersData = Array.isArray(data) ? data : [];
-              setWorkOrders(workOrdersData);
-              setIsLoading(false);
-              if (workOrdersData.length > 0) {
-                const latestData = workOrdersData[0];
-                setWo_no(latestData.no);
-                setTitle(latestData.title);
-                setWo_created_date(latestData.wo_created_date);
-                setWo_status(latestData.status); // Using wo.status consistently
-                setResource(latestData.resource);
-                setWo_description(latestData.description);
-                setWo_type(latestData.wo_type);
-                setWr_requestor(latestData.wr_requestor);
-                setWo_actual_completion_date(latestData.wo_actual_completion_date);
-                setActual_duration(latestData.actual_duration);
-                setYear(latestData.year);
-                setMonth(latestData.month);
-                setWeek_of_month(latestData.week_of_month);
-              }
-              return;
-            }
-          }
-          // If refresh fails
-          console.error("Authentication failed. Please login again.");
-          setWorkOrders([]);
-          setIsLoading(false);
-          return;
-        }
-
+        
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-
+        
         const data = await response.json();
-        const workOrdersData = Array.isArray(data) ? data : [];
-        setWorkOrders(workOrdersData);
-        setIsLoading(false);
-        if (workOrdersData.length > 0) {
-          const latestData = workOrdersData[0];
-          setWo_no(latestData.no);
-          setTitle(latestData.title);
-          setWo_created_date(latestData.wo_created_date);
-          setWo_status(latestData.status); // Using wo.status consistently
-          setResource(latestData.resource);
-          setWo_description(latestData.description);
-          setWo_type(latestData.wo_type);
-          setWr_requestor(latestData.wr_requestor);
-          setWo_actual_completion_date(latestData.wo_actual_completion_date);
-          setActual_duration(latestData.actual_duration);
-          setYear(latestData.year);
-          setMonth(latestData.month);
-          setWeek_of_month(latestData.week_of_month);
-        }
+        // Ensure data is an array before setting
+        setWorkRequests(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error("Error fetching data:", error);
-        setIsLoading(false);
-        setWorkOrders([]); // Set empty array on error
+        console.error("Error fetching work requests:", error);
+        // Keep empty array as fallback
+        setWorkRequests([]);
+      } finally {
+        setIsLoadingRequests(false);
       }
     };
 
-    fetchWorkOrders();
-    // Also fetch work requests
-    fetchWorkRequests();
-  }, []);
+    // Fetching data from API
+    useEffect(() => {
+      const fetchWorkOrders = async () => {
+        try {
+          const token = localStorage.getItem("accessToken");
+          
+          const headers: HeadersInit = {
+            "Content-Type": "application/json",
+          };
+          
+          if (token) {
+            headers.Authorization = `Bearer ${token}`;
+          }
 
-  // Filter work orders based on week selection
-  useEffect(() => {
-    // Ensure workOrders is an array before filtering
-    if (!Array.isArray(workOrders)) {
-      setFilteredWorkOrders([]);
-      return;
-    }
+          const response = await fetch("http://localhost:8000/api/work-orders/", {
+            headers: headers,
+          });
 
-    
+          if (response.status === 401) {
+            // Try to refresh token
+            const newToken = await refreshAccessToken();
+            if (newToken) {
+              // Retry with new token
+              const retryResponse = await fetch("http://localhost:8000/api/work-orders/", {
+                headers: {
+                  ...headers,
+                  Authorization: `Bearer ${newToken}`,
+                },
+              });
+              
+              if (retryResponse.ok) {
+                const data = await retryResponse.json();
+                const workOrdersData = Array.isArray(data) ? data : [];
+                setWorkOrders(workOrdersData);
+                setIsLoading(false);
+                if (workOrdersData.length > 0) {
+                  const latestData = workOrdersData[0];
+                  setWo_no(latestData.no);
+                  setTitle(latestData.title);
+                  setWo_created_date(latestData.wo_created_date);
+                  setWo_status(latestData.status); // Using wo.status consistently
+                  setResource(latestData.resource);
+                  setWo_description(latestData.description);
+                  setWo_type(latestData.wo_type);
+                  setWr_requestor(latestData.wr_requestor);
+                  setWo_actual_completion_date(latestData.wo_actual_completion_date);
+                  setActual_duration(latestData.actual_duration);
+                  setYear(latestData.year);
+                  setMonth(latestData.month);
+                  setWeek_of_month(latestData.week_of_month);
+                }
+                return;
+              }
+            }
+            // If refresh fails
+            console.error("Authentication failed. Please login again.");
+            setWorkOrders([]);
+            setIsLoading(false);
+            return;
+          }
 
-    // Start with all work orders
-    let filteredData = [...workOrders];
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
 
-    // Apply filters only if they are set (not null and not undefined)
-    if (week_of_month !== null && week_of_month !== undefined) {
+          const data = await response.json();
+          const workOrdersData = Array.isArray(data) ? data : [];
+          setWorkOrders(workOrdersData);
+          setIsLoading(false);
+          if (workOrdersData.length > 0) {
+            const latestData = workOrdersData[0];
+            setWo_no(latestData.no);
+            setTitle(latestData.title);
+            setWo_created_date(latestData.wo_created_date);
+            setWo_status(latestData.status); // Using wo.status consistently
+            setResource(latestData.resource);
+            setWo_description(latestData.description);
+            setWo_type(latestData.wo_type);
+            setWr_requestor(latestData.wr_requestor);
+            setWo_actual_completion_date(latestData.wo_actual_completion_date);
+            setActual_duration(latestData.actual_duration);
+            setYear(latestData.year);
+            setMonth(latestData.month);
+            setWeek_of_month(latestData.week_of_month);
+          }
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          setIsLoading(false);
+          setWorkOrders([]); // Set empty array on error
+        }
+      };
+
+      fetchWorkOrders();
+      // Also fetch work requests
+      fetchWorkRequests();
+    }, []);
+
+    // Filter work orders based on week selection
+    useEffect(() => {
+      // Ensure workOrders is an array before filtering
+      if (!Array.isArray(workOrders)) {
+        setFilteredWorkOrders([]);
+        return;
+      }
+
       
-      filteredData = filteredData.filter((wo) => wo.week_of_month === week_of_month);
-      
-    }
 
-    if (year !== null && year !== undefined) {
-      
-      filteredData = filteredData.filter((wo) => wo.year === year);
-      
-    }
+      // Start with all work orders
+      let filteredData = [...workOrders];
 
-    if (month !== null && month !== undefined) {
-      
-      filteredData = filteredData.filter((wo) => wo.month === month);
-      
-    }
-
-    
-    // Set filtered work orders after all filters are applied
-    setFilteredWorkOrders(filteredData);
-  }, [year, month, week_of_month, workOrders]);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "released":
-        return "bg-blue-100 text-blue-800";
-      case "unreleased":
-        return "bg-yellow-100 text-yellow-800";
-      case "completed":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getCategoryColor = (resource: string) => {
-    switch (resource) {
-      case "MTC":
-        return "bg-purple-100 text-purple-800";
-      case "CAL":
-        return "bg-orange-100 text-orange-800";
-      case "UTY":
-        return "bg-cyan-100 text-cyan-800";
-      case "personnel":
-        return "bg-blue-100 text-blue-800";
-      case "material":
-        return "bg-green-100 text-green-800";
-      case "tooling":
-        return "bg-yellow-100 text-yellow-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  // Ensure arrays are always arrays for safe operations
-  const safeFilteredWorkOrders = Array.isArray(filteredWorkOrders) ? filteredWorkOrders : [];
-  const safeWorkRequests = Array.isArray(workRequests) ? workRequests : [];
-
-  // Add pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  // Calculate pagination data
-  const totalItems = safeFilteredWorkOrders.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const paginatedWorkOrders = safeFilteredWorkOrders.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Pagination handlers
-  const goToPage = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const nextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const prevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  return (
-    <div className="flex flex-col min-h-screen">
-      {/* Loading state */}
-      {isLoading && <div>Loading...</div>}
-
-      {/* Header */}
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <div className="flex flex-1 items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold">Work Orders Management</h1>
-            <p className="text-sm text-muted-foreground">Kelola dan pantau semua work orders</p>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 space-y-6 p-6">
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total WO</CardTitle>
-              <Wrench className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{safeFilteredWorkOrders.length}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Released</CardTitle>
-              <AlertCircle className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {safeFilteredWorkOrders.filter((wo) => wo.status === "released").length}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Unreleased</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {safeFilteredWorkOrders.filter((wo) => wo.status === "unreleased").length}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {safeFilteredWorkOrders.filter((wo) => wo.status === "completed").length}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filter & Pencarian</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Input placeholder="Cari WO berdasarkan ID, judul, atau deskripsi..." className="pl-8" />
-                </div>
-              </div>
-              <Select>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Kategori" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Kategori</SelectItem>
-                  <SelectItem value="mtc">MTC</SelectItem>
-                  <SelectItem value="cal">CAL</SelectItem>
-                  <SelectItem value="uty">UTY</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Work Orders Tabs */}
+      // Apply filters only if they are set (not null and not undefined)
+      if (week_of_month !== null && week_of_month !== undefined) {
         
-        <Tabs defaultValue="list" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <TabsList>
-              <TabsTrigger value="list">List Work Order</TabsTrigger>
-              <TabsTrigger value="requests">Working Requests</TabsTrigger>
-              <TabsTrigger value="work-order">Work Order</TabsTrigger> {/* Changed to kebab-case */}
-              <TabsTrigger value="PM">Planned Maintenance</TabsTrigger>
-            </TabsList>
-            
-            <div className="flex gap-2">
-              <Button
-                onClick={() => setIsPMDialogOpen(true)}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                PM
-              </Button>
+        filteredData = filteredData.filter((wo) => wo.week_of_month === week_of_month);
+        
+      }
+
+      if (year !== null && year !== undefined) {
+        
+        filteredData = filteredData.filter((wo) => wo.year === year);
+        
+      }
+
+      if (month !== null && month !== undefined) {
+        
+        filteredData = filteredData.filter((wo) => wo.month === month);
+        
+      }
+
+      
+      // Set filtered work orders after all filters are applied
+      setFilteredWorkOrders(filteredData);
+    }, [year, month, week_of_month, workOrders]);
+
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case "released":
+          return "bg-blue-100 text-blue-800";
+        case "unreleased":
+          return "bg-yellow-100 text-yellow-800";
+        case "completed":
+          return "bg-green-100 text-green-800";
+        default:
+          return "bg-gray-100 text-gray-800";
+      }
+    };
+
+    const getCategoryColor = (resource: string) => {
+      switch (resource) {
+        case "MTC":
+          return "bg-purple-100 text-purple-800";
+        case "CAL":
+          return "bg-orange-100 text-orange-800";
+        case "UTY":
+          return "bg-cyan-100 text-cyan-800";
+        case "personnel":
+          return "bg-blue-100 text-blue-800";
+        case "material":
+          return "bg-green-100 text-green-800";
+        case "tooling":
+          return "bg-yellow-100 text-yellow-800";
+        default:
+          return "bg-gray-100 text-gray-800";
+      }
+    };
+
+    // Ensure arrays are always arrays for safe operations
+    const safeFilteredWorkOrders = Array.isArray(filteredWorkOrders) ? filteredWorkOrders : [];
+    const safeWorkRequests = Array.isArray(workRequests) ? workRequests : [];
+
+    // Add pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    // Calculate pagination data
+    const totalItems = safeFilteredWorkOrders.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const paginatedWorkOrders = safeFilteredWorkOrders.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+
+    // Pagination handlers
+    const goToPage = (page: number) => {
+      setCurrentPage(page);
+    };
+
+    const nextPage = () => {
+      if (currentPage < totalPages) {
+        setCurrentPage(currentPage + 1);
+      }
+    };
+
+    const prevPage = () => {
+      if (currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
+    };
+
+    return (
+      <div className="flex flex-col min-h-screen">
+        {/* Loading state */}
+        {isLoading && <div>Loading...</div>}
+
+        {/* Header */}
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <div className="flex flex-1 items-center justify-between">
+            <div>
+              <h1 className="text-lg font-semibold">Work Orders Management</h1>
+              <p className="text-sm text-muted-foreground">Kelola dan pantau semua work orders</p>
             </div>
           </div>
+        </header>
 
-          <TabsContent value="list" className="space-y-4">
-            <div className="space-y-4"></div>
-            {paginatedWorkOrders.map((wo, index) => (
-              <Card key={wo.wo_number || `wo-${index}`}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-3 flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold">{wo.title}</h3>
-                        <Badge variant="outline">{wo.wo_number}</Badge>
-                        <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
-                        <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
+        {/* Main Content */}
+        <main className="flex-1 space-y-6 p-6">
+          {/* Stats Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total WO</CardTitle>
+                <Wrench className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{safeFilteredWorkOrders.length}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Released</CardTitle>
+                <AlertCircle className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {safeFilteredWorkOrders.filter((wo) => wo.status === "released").length}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Unreleased</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {safeFilteredWorkOrders.filter((wo) => wo.status === "unreleased").length}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {safeFilteredWorkOrders.filter((wo) => wo.status === "completed").length}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Filter & Pencarian</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Input placeholder="Cari WO berdasarkan ID, judul, atau deskripsi..." className="pl-8" />
+                  </div>
+                </div>
+                <Select>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Kategori" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Kategori</SelectItem>
+                    <SelectItem value="mtc">MTC</SelectItem>
+                    <SelectItem value="cal">CAL</SelectItem>
+                    <SelectItem value="uty">UTY</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Work Orders Tabs */}
+          
+          <Tabs defaultValue="list" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <TabsList>
+                <TabsTrigger value="list">List Work Order</TabsTrigger>
+                <TabsTrigger value="requests">Working Requests</TabsTrigger>
+                <TabsTrigger value="work-order">Work Order</TabsTrigger> {/* Changed to kebab-case */}
+              </TabsList>
+              
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsPMDialogOpen(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  PM
+                </Button>
+              </div>
+            </div>
+
+            <TabsContent value="list" className="space-y-4">
+              <div className="space-y-4"></div>
+              {paginatedWorkOrders.map((wo, index) => (
+                <Card key={wo.wo_number || `wo-${index}`}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-3 flex-1">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-lg font-semibold">{wo.title}</h3>
+                          <Badge variant="outline">{wo.wo_number}</Badge>
+                          <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
+                          <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground">{wo.description}</p>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span>
+                              Completion : {wo.wo_completion_date ? 
+                                new Date(wo.wo_completion_date).toLocaleString("id-ID", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: false,
+                                  timeZone: "Asia/Jakarta",
+                                }) : "–"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span>
+                              Duration: {wo.actual_duration ? formatDuration(wo.actual_duration) : "–"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Wrench className="h-4 w-4 text-muted-foreground" />
+                            <span>Type: {wo.wo_type}</span>
+                          </div>
+                        </div>
                       </div>
 
-                      <p className="text-sm text-muted-foreground">{wo.description}</p>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewDetails(wo)}>View Details</DropdownMenuItem>
+                          <DropdownMenuItem>Edit WO</DropdownMenuItem>
+                          <DropdownMenuItem>Update Status</DropdownMenuItem>
+                          <DropdownMenuItem>Add Comment</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">Close WO</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}{totalItems > itemsPerPage && (
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-muted-foreground">
+          Showing {((currentPage - 1) * itemsPerPage) + 1}–
+          {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} work orders
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={prevPage}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span>Assignee: {wo.engineer_name}</span>
+              return (
+                <Button
+                  key={pageNum}
+                  variant={currentPage === pageNum ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => goToPage(pageNum)}
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+            {totalPages > 5 && currentPage < totalPages - 2 && (
+              <>
+                <span className="px-2">...</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(totalPages)}
+                >
+                  {totalPages}
+                </Button>
+              </>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={nextPage}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    )}
+  </TabsContent>
+
+            
+            <TabsContent value="requests" className="space-y-4">
+              {/* Filter & Pencarian untuk Requests */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Filter & Pencarian</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Cari request berdasarkan ID, judul, atau deskripsi..." className="pl-8" />
+                      </div>
+                    </div>
+                    <Select>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Prioritas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Prioritas</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Kategori" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Kategori</SelectItem>
+                        <SelectItem value="mtc">MTC</SelectItem>
+                        <SelectItem value="cal">CAL</SelectItem>
+                        <SelectItem value="uty">UTY</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Working Requests List */}
+              <div className="space-y-4">
+                {isLoadingRequests ? (
+                  <div className="text-center py-8">Loading work requests...</div>
+                ) : workingRequests.length === 0 ? (
+                  <Alert>
+                    <AlertDescription>Tidak ada working request yang menunggu persetujuan saat ini.</AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-4">
+                    {workingRequests.map((request, index) => (
+                      <Card key={request.wr_number || request.id || `request-${index}`}>
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-3 flex-1">
+                              <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-semibold">{request.title}</h3>
+                                <Badge variant="outline">{request.wr_number || request.id}</Badge>
+                                <Badge className={getCategoryColor(request.resource || request.category)}>
+                                  {request.resource || request.category}
+                                </Badge>
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                  {request.urgency}
+                                </Badge>
+                              </div>
+
+                              <p className="text-sm text-muted-foreground">
+                                {request.description || request.description}
+                              </p>
+
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4 text-muted-foreground" />
+                                  <span>Requester: {request.requester_name || "Unknown"}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  <span>Date: {request.created_at ? new Date(request.created_at).toLocaleDateString("id-ID") : "Unknown"}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 ml-4">
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleApprove(request.id)}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive" 
+                                onClick={() => handleCancel(request.id)}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="work-order" className="space-y-4">
+              {/* Sub-tabs for work orders */}
+              <Tabs defaultValue="pending-forms" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="pending-forms">Pending Forms</TabsTrigger>
+                  <TabsTrigger value="work-order-to-complete">Work Order to Complete</TabsTrigger>
+                </TabsList>
+
+                {/* Pending Forms Sub-tab */}
+                <TabsContent value="pending-forms" className="space-y-4">
+                  <div className="space-y-4">
+                    {unreleasedWorkOrders.length === 0 ? (
+                      <Alert>
+                        <AlertDescription>
+                          Tidak ada work order yang memerlukan pengisian form saat ini.
+                        </AlertDescription>
+                      </Alert>
+                    ) : (
+                      <div className="space-y-4">
+                        {paginatedWorkOrders.map((wo, index) => (
+                          <Card key={wo.wo_number || `unreleased-wo-${index}`}>
+                            <CardContent className="p-6">
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-3 flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <h3 className="text-lg font-semibold">{wo.title}</h3>
+                                    <Badge variant="outline">{wo.wo_number}</Badge>
+                                    <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
+                                    <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
+                                  </div>
+
+                                  <p className="text-sm text-muted-foreground">{wo.description}</p>
+
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    
+                                    <div className="flex items-center gap-2">
+                                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                                      <span>Due: {wo.wo_completion_date ? 
+                                        new Date(wo.wo_completion_date).toLocaleString("id-ID", {
+                                          day: "2-digit",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          hour12: false,
+                                          timeZone: "Asia/Jakarta",
+                                        }) : "–"}
+                                      </span>
+
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="h-4 w-4 text-muted-foreground" />
+                                      <span>
+                                        Est: {typeof wo.actual_duration === "number" ? formatDurationSeconds(wo.actual_duration) : "–"}
+                                      </span>
+
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Wrench className="h-4 w-4 text-muted-foreground" />
+                                      <span>Type: {wo.wo_type}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 ml-4">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleWorkOrderClick(wo)}
+                                  >
+                                    <Wrench className="h-4 w-4 mr-1" />
+                                    Fill Form
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Work Order to Complete Sub-tab */}
+                <TabsContent value="work-order-to-complete" className="space-y-4">
+                  <div className="space-y-4">
+                    {releasedWorkOrders.length === 0 ? (
+                      <Alert>
+                        <AlertDescription>
+                          Tidak ada work order yang siap untuk diselesaikan saat ini.
+                        </AlertDescription>
+                      </Alert>
+                    ) : (
+                      <div className="space-y-4">
+                        {releasedWorkOrders.map((wo, index) => (
+                          <Card key={wo.wo_number || `released-wo-${index}`}>
+                            <CardContent className="p-6">
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-3 flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <h3 className="text-lg font-semibold">{wo.title}</h3>
+                                    <Badge variant="outline">{wo.wo_number}</Badge>
+                                    <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
+                                    <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
+                                  </div>
+
+                                  <p className="text-sm text-muted-foreground">{wo.description}</p>
+
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    
+                                    <div className="flex items-center gap-2">
+                                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                                      <span>Due: {wo.completion_by_date ? 
+                                      new Date(wo.completion_by__date).toLocaleString("id-ID", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                        hour12: false,
+                                        timeZone: "Asia/Jakarta",
+                                      }) : "–"}
+                                    </span>
+
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="h-4 w-4 text-muted-foreground" />
+                                      <span>
+                                        Est: {typeof wo.actual_duration === "number" ? formatDurationSeconds(wo.actual_duration) : "–"}
+                                      </span>
+
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Wrench className="h-4 w-4 text-muted-foreground" />
+                                      <span>Type: {wo.wo_type}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 ml-4">
+                                  <Button
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700"
+                                    onClick={() => handleCompleteWorkOrder(wo.wo_number || wo.id)}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Complete
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* Work Order Form Dialog */}
+              <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Work Order Form - {selectedWorkOrder?.no}</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleFormSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="asset_area">Asset Area</Label>
+                        <Select 
+                          value={workOrderForm.asset_area} 
+                          onValueChange={(value) => setWorkOrderForm(prev => ({...prev, asset_area: value}))}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Asset Area" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="EN">EN</SelectItem>
+                            <SelectItem value="IT">IT</SelectItem>
+                            <SelectItem value="QA">QA</SelectItem>
+                            <SelectItem value="QC">QC</SelectItem>
+                            <SelectItem value="PD">PD</SelectItem>
+                            <SelectItem value="RD">RD</SelectItem>
+                            <SelectItem value="WH">WH</SelectItem>
+                            <SelectItem value="LINE01">LINE01</SelectItem>
+                            <SelectItem value="LINE02">LINE02</SelectItem>
+                            <SelectItem value="LINE03">LINE03</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="asset_group">Asset Group</Label>
+                        <Select 
+                          value={workOrderForm.asset_group} 
+                          onValueChange={(value) => setWorkOrderForm(prev => ({...prev, asset_group: value}))}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Asset Group" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="machinery">ATE001</SelectItem>
+                            <SelectItem value="electrical">ATE002</SelectItem>
+                            <SelectItem value="hvac">AMC011</SelectItem>
+                            <SelectItem value="plumbing">PAMD112</SelectItem>
+                            <SelectItem value="it_equipment">AMD001</SelectItem>
+                            <SelectItem value="safety_equipment">AMD002</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="failure_code">Failure Code</Label>
+                        <Select 
+                          value={workOrderForm.failure_code} 
+                          onValueChange={(value) => setWorkOrderForm(prev => ({...prev, failure_code: value}))}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Failure Code" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MEC001">MEC001</SelectItem>
+                            <SelectItem value="ELC001">ELC001 </SelectItem>
+                            <SelectItem value="HYD001">HYD001 </SelectItem>
+                            <SelectItem value="PNE001">PNE001 </SelectItem>
+                            <SelectItem value="WEA001">WEA001 </SelectItem>
+                            <SelectItem value="CAL001">CAL001 </SelectItem>
+                            <SelectItem value="COR001">COR001 </SelectItem>
+                            <SelectItem value="OTH001">OTH001 </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="failure_asset">Failure Asset</Label>
+                        <Input
+                          id="failure_asset"
+                          value={workOrderForm.failure_asset}
+                          onChange={(e) => setWorkOrderForm(prev => ({...prev, failure_asset: e.target.value}))}
+                          placeholder="Enter failure asset"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="failure_cause">Failure Cause</Label>
+                      <Textarea
+                        id="failure_cause"
+                        value={workOrderForm.failure_cause}
+                        onChange={(e) => setWorkOrderForm(prev => ({...prev, failure_cause: e.target.value}))}
+                        placeholder="Describe the failure cause"
+                        rows={3}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="resolution">Resolution</Label>
+                      <Textarea
+                        id="resolution"
+                        value={workOrderForm.resolution}
+                        onChange={(e) => setWorkOrderForm(prev => ({...prev, resolution: e.target.value}))}
+                        placeholder="Describe the resolution taken"
+                        rows={3}
+                        required
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsFormDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit">
+                        Submit Form
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              </TabsContent>
+              </Tabs>
+              <Dialog open={isPMDialogOpen} onOpenChange={setIsPMDialogOpen}>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Planned Maintenance Form</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    {/* Title and Description */}
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <Label>Title</Label>
+                        <Input value={formData.title} onChange={(e) => handleChange("title", e.target.value)} placeholder="Enter PM title" />
+                      </div>
+                      <div>
+                        <Label>Description</Label>
+                        <Textarea value={formData.description} onChange={(e) => handleChange("description", e.target.value)} placeholder="Enter PM description" rows={3} />
+                      </div>
+                    </div>
+
+                    {/* Asset Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Asset Number</Label>
+                        <Input value={formData.asset_number} onChange={(e) => handleChange("asset_number", e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Asset Group</Label>
+                        <Input value={formData.asset_group} onChange={(e) => handleChange("asset_group", e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Asset Area</Label>
+                        <Select value={formData.asset_area} onValueChange={(val) => handleChange("asset_area", val)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select asset area" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="EN">EN</SelectItem>
+                            <SelectItem value="IT">IT</SelectItem>
+                            <SelectItem value="QA">QA</SelectItem>
+                            <SelectItem value="QC">QC</SelectItem>
+                            <SelectItem value="PD">PD</SelectItem>
+                            <SelectItem value="RD">RD</SelectItem>
+                            <SelectItem value="WH">WH</SelectItem>
+                            <SelectItem value="LINE01">LINE01</SelectItem>
+                            <SelectItem value="LINE02">LINE02</SelectItem>
+                            <SelectItem value="LINE03">LINE03</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Parent Asset</Label>
+                        <Input value={formData.parent_asset} onChange={(e) => handleChange("parent_asset", e.target.value)} />
+                      </div>
+                      
+                    </div>
+
+                    {/* Maintenance Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Urgency</Label>
+                        <Select onValueChange={(val) => handleChange("urgency", val)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select urgency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label>WO Type</Label>
+                        <Select onValueChange={(val) => handleChange("wo_type", val)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PM">PM</SelectItem>
+                            <SelectItem value="PdM">PdM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="col-span-2">
+                        <Label>Scheduled Maintenance Date</Label>
+                        <Input
+                          type="date"
+                          value={formData.wo_start_date ? formData.wo_start_date.toISOString().split('T')[0] : ''}
+                          onChange={(e) => handleChange("wo_start_date", new Date(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+
+                    {/* PM Details */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>PM Name</Label>
+                        <Input value={formData.pm_name} onChange={(e) => handleChange("pm_name", e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Set Name</Label>
+                        <Select value={formData.set_name} onValueChange={(val) => handleChange("set_name", val)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select set name" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="set_a">Calibration</SelectItem>
+                            <SelectItem value="set_b">Pdm Maintenance</SelectItem>
+                            <SelectItem value="set_c">Pdm Utility</SelectItem>
+                            <SelectItem value="set_d">PM Maintenance</SelectItem>
+                            <SelectItem value="main_set">PM Utility</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Asset Activity</Label>
+                      <Textarea value={formData.asset_activity} onChange={(e) => handleChange("asset_activity", e.target.value)} />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsPMDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        className="bg-green-600 hover:bg-green-700 text-white" 
+                        onClick={handleSubmit}
+                      >
+                        Submit Planned Maintenance
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Work Order Details Dialog */}
+              <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Work Order Details - {selectedWorkOrderDetails?.wo_number}</DialogTitle>
+                  </DialogHeader>
+                  {selectedWorkOrderDetails && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Title</Label>
+                          <div className="text-sm">{selectedWorkOrderDetails.title}</div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span>
-                            Completion : {wo.wo_completion_date ? 
-                              new Date(wo.wo_completion_date).toLocaleString("id-ID", {
+                        <div>
+                          <Label>Status</Label>
+                          <div className="text-sm">
+                            <Badge className={getStatusColor(selectedWorkOrderDetails.status)}>
+                              {selectedWorkOrderDetails.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Type</Label>
+                          <div className="text-sm">{selectedWorkOrderDetails.wo_type}</div>
+                        </div>
+                        <div>
+                          <Label>Resource</Label>
+                          <div className="text-sm">
+                            <Badge className={getCategoryColor(selectedWorkOrderDetails.resource)}>
+                              {selectedWorkOrderDetails.resource}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Created Date</Label>
+                          <div className="text-sm">
+                            {selectedWorkOrderDetails.wo_created_date ? 
+                              new Date(selectedWorkOrderDetails.wo_created_date).toLocaleString("id-ID", {
                                 day: "2-digit",
                                 month: "short",
                                 year: "numeric",
@@ -926,623 +1618,100 @@ const handleFormSubmit = async (e: React.FormEvent) => {
                                 minute: "2-digit",
                                 hour12: false,
                                 timeZone: "Asia/Jakarta",
-                              }) : "–"}
-                          </span>
+                              }) : "N/A"}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span>
-                            Duration: {wo.actual_duration ? formatDuration(wo.actual_duration) : "–"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Wrench className="h-4 w-4 text-muted-foreground" />
-                          <span>Type: {wo.wo_type}</span>
+                        <div>
+                          <Label>Completion Date</Label>
+                          <div className="text-sm">
+                            {selectedWorkOrderDetails.wo_completion_date ? 
+                              new Date(selectedWorkOrderDetails.wo_completion_date).toLocaleString("id-ID", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
+                                timeZone: "Asia/Jakarta",
+                              }) : "N/A"}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit WO</DropdownMenuItem>
-                        <DropdownMenuItem>Update Status</DropdownMenuItem>
-                        <DropdownMenuItem>Add Comment</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Close WO</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}{totalItems > itemsPerPage && (
-    <div className="flex items-center justify-between mt-4">
-      <div className="text-sm text-muted-foreground">
-        Showing {((currentPage - 1) * itemsPerPage) + 1}–
-        {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} work orders
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={prevPage}
-          disabled={currentPage === 1}
-        >
-          Previous
-        </Button>
-        <div className="flex items-center gap-1">
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let pageNum;
-            if (totalPages <= 5) {
-              pageNum = i + 1;
-            } else if (currentPage <= 3) {
-              pageNum = i + 1;
-            } else if (currentPage >= totalPages - 2) {
-              pageNum = totalPages - 4 + i;
-            } else {
-              pageNum = currentPage - 2 + i;
-            }
+                      <div>
+                        <Label>Description</Label>
+                        <div className="text-sm">{selectedWorkOrderDetails.description}</div>
+                      </div>
 
-            return (
-              <Button
-                key={pageNum}
-                variant={currentPage === pageNum ? "default" : "outline"}
-                size="sm"
-                onClick={() => goToPage(pageNum)}
-              >
-                {pageNum}
-              </Button>
-            );
-          })}
-          {totalPages > 5 && currentPage < totalPages - 2 && (
-            <>
-              <span className="px-2">...</span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => goToPage(totalPages)}
-              >
-                {totalPages}
-              </Button>
-            </>
-          )}
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={nextPage}
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </Button>
-      </div>
-    </div>
-  )}
-</TabsContent>
-
-          
-          <TabsContent value="requests" className="space-y-4">
-            {/* Filter & Pencarian untuk Requests */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Filter & Pencarian</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Cari request berdasarkan ID, judul, atau deskripsi..." className="pl-8" />
-                    </div>
-                  </div>
-                  <Select>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Prioritas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Semua Prioritas</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Kategori" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Semua Kategori</SelectItem>
-                      <SelectItem value="mtc">MTC</SelectItem>
-                      <SelectItem value="cal">CAL</SelectItem>
-                      <SelectItem value="uty">UTY</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Working Requests List */}
-            <div className="space-y-4">
-              {isLoadingRequests ? (
-                <div className="text-center py-8">Loading work requests...</div>
-              ) : workingRequests.length === 0 ? (
-                <Alert>
-                  <AlertDescription>Tidak ada working request yang menunggu persetujuan saat ini.</AlertDescription>
-                </Alert>
-              ) : (
-                <div className="space-y-4">
-                  {workingRequests.map((request, index) => (
-                    <Card key={request.wr_number || request.id || `request-${index}`}>
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-3 flex-1">
-                            <div className="flex items-center gap-3">
-                              <h3 className="text-lg font-semibold">{request.title}</h3>
-                              <Badge variant="outline">{request.wr_number || request.id}</Badge>
-                              <Badge className={getCategoryColor(request.resource || request.category)}>
-                                {request.resource || request.category}
-                              </Badge>
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                                {request.urgency}
-                              </Badge>
-                            </div>
-
-                            <p className="text-sm text-muted-foreground">
-                              {request.description || request.description}
-                            </p>
-
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                <span>Requester: {request.wr_requestor || request.requester}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span>Date: {request.wr_request_by_date || request.requestDate}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 ml-4">
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleApprove(request.id)}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="destructive" 
-                              onClick={() => handleCancel(request.id)}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Cancel
-                            </Button>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Requestor</Label>
+                          <div className="text-sm">{selectedWorkOrderDetails.wr_requestor || "N/A"}</div>
+                        </div>
+                        <div>
+                          <Label>Duration</Label>
+                          <div className="text-sm">
+                            {selectedWorkOrderDetails.actual_duration ? 
+                              formatDuration(selectedWorkOrderDetails.actual_duration) : "N/A"}
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="work-order" className="space-y-4">
-            {/* Sub-tabs for work orders */}
-            <Tabs defaultValue="pending-forms" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="pending-forms">Pending Forms</TabsTrigger>
-                <TabsTrigger value="work-order-to-complete">Work Order to Complete</TabsTrigger>
-              </TabsList>
+                        <div>
+                          <Label>Year</Label>
+                          <div className="text-sm">{selectedWorkOrderDetails.year || "N/A"}</div>
+                        </div>
+                        <div>
+                          <Label>Month</Label>
+                          <div className="text-sm">{selectedWorkOrderDetails.month || "N/A"}</div>
+                        </div>
+                        <div>
+                          <Label>Week of Month</Label>
+                          <div className="text-sm">{selectedWorkOrderDetails.week_of_month || "N/A"}</div>
+                        </div>
+                      </div>
 
-              {/* Pending Forms Sub-tab */}
-              <TabsContent value="pending-forms" className="space-y-4">
-                <div className="space-y-4">
-                  {unreleasedWorkOrders.length === 0 ? (
-                    <Alert>
-                      <AlertDescription>
-                        Tidak ada work order yang memerlukan pengisian form saat ini.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <div className="space-y-4">
-                      {unreleasedWorkOrders.map((wo, index) => (
-                        <Card key={wo.wo_number || `unreleased-wo-${index}`}>
-                          <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-3 flex-1">
-                                <div className="flex items-center gap-3">
-                                  <h3 className="text-lg font-semibold">{wo.title}</h3>
-                                  <Badge variant="outline">{wo.wo_number}</Badge>
-                                  <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
-                                  <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
-                                </div>
-
-                                <p className="text-sm text-muted-foreground">{wo.description}</p>
-
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <User className="h-4 w-4 text-muted-foreground" />
-                                    <span>Assignee: {wo.engineer_name}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                                    <span>Due: {wo.wo_actual_completion_date}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4 text-muted-foreground" />
-                                    <span>Est: {wo.actual_duration}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Wrench className="h-4 w-4 text-muted-foreground" />
-                                    <span>Type: {wo.wo_type}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 ml-4">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleWorkOrderClick(wo)}
-                                >
-                                  <Wrench className="h-4 w-4 mr-1" />
-                                  Fill Form
-                                </Button>
-                              </div>
+                      {selectedWorkOrderDetails.status === "released" && (
+                        <div className="space-y-2">
+                          <Label>Work Order Form Details</Label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Asset Area</Label>
+                              <div className="text-sm">{selectedWorkOrderDetails.asset_area || "N/A"}</div>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                            <div>
+                              <Label>Asset Group</Label>
+                              <div className="text-sm">{selectedWorkOrderDetails.asset_group || "N/A"}</div>
+                            </div>
+                            <div>
+                              <Label>Failure Code</Label>
+                              <div className="text-sm">{selectedWorkOrderDetails.failure_code || "N/A"}</div>
+                            </div>
+                            <div>
+                              <Label>Failure Asset</Label>
+                              <div className="text-sm">{selectedWorkOrderDetails.failure_asset || "N/A"}</div>
+                            </div>
+                            <div className="col-span-2">
+                              <Label>Failure Cause</Label>
+                              <div className="text-sm">{selectedWorkOrderDetails.failure_cause || "N/A"}</div>
+                            </div>
+                            <div className="col-span-2">
+                              <Label>Resolution</Label>
+                              <div className="text-sm">{selectedWorkOrderDetails.resolution || "N/A"}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end pt-4">
+                        <Button onClick={() => setIsDetailsDialogOpen(false)}>
+                          Close
+                        </Button>
+                      </div>
                     </div>
                   )}
-                </div>
-              </TabsContent>
-
-              {/* Work Order to Complete Sub-tab */}
-              <TabsContent value="work-order-to-complete" className="space-y-4">
-                <div className="space-y-4">
-                  {releasedWorkOrders.length === 0 ? (
-                    <Alert>
-                      <AlertDescription>
-                        Tidak ada work order yang siap untuk diselesaikan saat ini.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <div className="space-y-4">
-                      {releasedWorkOrders.map((wo, index) => (
-                        <Card key={wo.wo_number || `released-wo-${index}`}>
-                          <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-3 flex-1">
-                                <div className="flex items-center gap-3">
-                                  <h3 className="text-lg font-semibold">{wo.title}</h3>
-                                  <Badge variant="outline">{wo.wo_number}</Badge>
-                                  <Badge className={getCategoryColor(wo.resource)}>{wo.resource}</Badge>
-                                  <Badge className={getStatusColor(wo.status)}>{wo.status}</Badge>
-                                </div>
-
-                                <p className="text-sm text-muted-foreground">{wo.description}</p>
-
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <User className="h-4 w-4 text-muted-foreground" />
-                                    <span>Assignee: {wo.engineer_name}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                                    <span>Due: {wo.wo_actual_completion_date}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4 text-muted-foreground" />
-                                    <span>Est: {wo.actual_duration}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Wrench className="h-4 w-4 text-muted-foreground" />
-                                    <span>Type: {wo.wo_type}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 ml-4">
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700"
-                                  onClick={() => handleCompleteWorkOrder(wo.wo_number || wo.id)}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Complete
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            {/* Work Order Form Dialog */}
-            <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Work Order Form - {selectedWorkOrder?.no}</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleFormSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="asset_area">Asset Area</Label>
-                      <Select 
-                        value={workOrderForm.asset_area} 
-                        onValueChange={(value) => setWorkOrderForm(prev => ({...prev, asset_area: value}))}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Asset Area" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="EN">EN</SelectItem>
-                          <SelectItem value="IT">IT</SelectItem>
-                          <SelectItem value="QA">QA</SelectItem>
-                          <SelectItem value="QC">QC</SelectItem>
-                          <SelectItem value="PD">PD</SelectItem>
-                          <SelectItem value="RD">RD</SelectItem>
-                          <SelectItem value="WH">WH</SelectItem>
-                          <SelectItem value="LINE01">LINE01</SelectItem>
-                          <SelectItem value="LINE02">LINE02</SelectItem>
-                          <SelectItem value="LINE03">LINE03</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="asset_group">Asset Group</Label>
-                      <Select 
-                        value={workOrderForm.asset_group} 
-                        onValueChange={(value) => setWorkOrderForm(prev => ({...prev, asset_group: value}))}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Asset Group" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="machinery">ATE001</SelectItem>
-                          <SelectItem value="electrical">ATE002</SelectItem>
-                          <SelectItem value="hvac">AMC011</SelectItem>
-                          <SelectItem value="plumbing">PAMD112</SelectItem>
-                          <SelectItem value="it_equipment">AMD001</SelectItem>
-                          <SelectItem value="safety_equipment">AMD002</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="failure_code">Failure Code</Label>
-                      <Select 
-                        value={workOrderForm.failure_code} 
-                        onValueChange={(value) => setWorkOrderForm(prev => ({...prev, failure_code: value}))}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Failure Code" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="MEC001">MEC001</SelectItem>
-                          <SelectItem value="ELC001">ELC001 </SelectItem>
-                          <SelectItem value="HYD001">HYD001 </SelectItem>
-                          <SelectItem value="PNE001">PNE001 </SelectItem>
-                          <SelectItem value="WEA001">WEA001 </SelectItem>
-                          <SelectItem value="CAL001">CAL001 </SelectItem>
-                          <SelectItem value="COR001">COR001 </SelectItem>
-                          <SelectItem value="OTH001">OTH001 </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="failure_asset">Failure Asset</Label>
-                      <Input
-                        id="failure_asset"
-                        value={workOrderForm.failure_asset}
-                        onChange={(e) => setWorkOrderForm(prev => ({...prev, failure_asset: e.target.value}))}
-                        placeholder="Enter failure asset"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="failure_cause">Failure Cause</Label>
-                    <Textarea
-                      id="failure_cause"
-                      value={workOrderForm.failure_cause}
-                      onChange={(e) => setWorkOrderForm(prev => ({...prev, failure_cause: e.target.value}))}
-                      placeholder="Describe the failure cause"
-                      rows={3}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="resolution">Resolution</Label>
-                    <Textarea
-                      id="resolution"
-                      value={workOrderForm.resolution}
-                      onChange={(e) => setWorkOrderForm(prev => ({...prev, resolution: e.target.value}))}
-                      placeholder="Describe the resolution taken"
-                      rows={3}
-                      required
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsFormDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit">
-                      Submit Form
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-            </TabsContent>
-            </Tabs>
-            <Dialog open={isPMDialogOpen} onOpenChange={setIsPMDialogOpen}>
-              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Planned Maintenance Form</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  {/* Title and Description */}
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <Label>Title</Label>
-                      <Input value={formData.title} onChange={(e) => handleChange("title", e.target.value)} placeholder="Enter PM title" />
-                    </div>
-                    <div>
-                      <Label>Description</Label>
-                      <Textarea value={formData.description} onChange={(e) => handleChange("description", e.target.value)} placeholder="Enter PM description" rows={3} />
-                    </div>
-                  </div>
-
-                  {/* Asset Info */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Asset Number</Label>
-                      <Input value={formData.asset_number} onChange={(e) => handleChange("asset_number", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Asset Group</Label>
-                      <Input value={formData.asset_group} onChange={(e) => handleChange("asset_group", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Asset Area</Label>
-                      <Select value={formData.asset_area} onValueChange={(val) => handleChange("asset_area", val)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select asset area" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="EN">EN</SelectItem>
-                          <SelectItem value="IT">IT</SelectItem>
-                          <SelectItem value="QA">QA</SelectItem>
-                          <SelectItem value="QC">QC</SelectItem>
-                          <SelectItem value="PD">PD</SelectItem>
-                          <SelectItem value="RD">RD</SelectItem>
-                          <SelectItem value="WH">WH</SelectItem>
-                          <SelectItem value="LINE01">LINE01</SelectItem>
-                          <SelectItem value="LINE02">LINE02</SelectItem>
-                          <SelectItem value="LINE03">LINE03</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Parent Asset</Label>
-                      <Input value={formData.parent_asset} onChange={(e) => handleChange("parent_asset", e.target.value)} />
-                    </div>
-                    
-                  </div>
-
-                  {/* Maintenance Info */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Urgency</Label>
-                      <Select onValueChange={(val) => handleChange("urgency", val)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select urgency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label>WO Type</Label>
-                      <Select onValueChange={(val) => handleChange("wo_type", val)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PM">PM</SelectItem>
-                          <SelectItem value="PdM">PdM</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="col-span-2">
-                      <Label>Scheduled Maintenance Date</Label>
-                      <Input
-                        type="date"
-                        value={formData.wo_start_date ? formData.wo_start_date.toISOString().split('T')[0] : ''}
-                        onChange={(e) => handleChange("wo_start_date", new Date(e.target.value))}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* PM Details */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>PM Name</Label>
-                      <Input value={formData.pm_name} onChange={(e) => handleChange("pm_name", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Set Name</Label>
-                      <Select value={formData.set_name} onValueChange={(val) => handleChange("set_name", val)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select set name" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="set_a">Calibration</SelectItem>
-                          <SelectItem value="set_b">Pdm Maintenance</SelectItem>
-                          <SelectItem value="set_c">Pdm Utility</SelectItem>
-                          <SelectItem value="set_d">PM Maintenance</SelectItem>
-                          <SelectItem value="main_set">PM Utility</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Asset Activity</Label>
-                    <Textarea value={formData.asset_activity} onChange={(e) => handleChange("asset_activity", e.target.value)} />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsPMDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      className="bg-green-600 hover:bg-green-700 text-white" 
-                      onClick={handleSubmit}
-                    >
-                      Submit Planned Maintenance
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </main>
-        </div>
-      );
-    };
-export default WorkOrdersPage;
+                </DialogContent>
+              </Dialog>
+            </main>
+          </div>
+        );
+      };
+  export default WorkOrdersPage;
